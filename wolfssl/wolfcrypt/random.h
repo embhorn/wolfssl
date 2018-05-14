@@ -161,7 +161,7 @@ struct WC_RNG {
 
 
 WOLFSSL_LOCAL
-int wc_GenerateSeed(OS_Seed* os, byte* seed, word32 sz);
+int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz);
 
 
 #ifdef HAVE_WNR
@@ -171,19 +171,19 @@ int wc_GenerateSeed(OS_Seed* os, byte* seed, word32 sz);
 #endif /* HAVE_WNR */
 
 
-WOLFSSL_API int  wc_InitRng(WC_RNG*);
+WOLFSSL_API int  wc_InitRng(WC_RNG* rng);
 WOLFSSL_API int  wc_InitRng_ex(WC_RNG* rng, void* heap, int devId);
-WOLFSSL_API int  wc_RNG_GenerateBlock(WC_RNG*, byte*, word32 sz);
-WOLFSSL_API int  wc_RNG_GenerateByte(WC_RNG*, byte*);
-WOLFSSL_API int  wc_FreeRng(WC_RNG*);
+WOLFSSL_API int  wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz);
+WOLFSSL_API int  wc_RNG_GenerateByte(WC_RNG* rng, byte* b);
+WOLFSSL_API int  wc_FreeRng(WC_RNG* rng);
 
 
 #ifdef HAVE_HASHDRBG
     WOLFSSL_LOCAL int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* entropy,
                                         word32 entropySz);
     WOLFSSL_API int wc_RNG_HealthTest(int reseed,
-                                        const byte* entropyA, word32 entropyASz,
-                                        const byte* entropyB, word32 entropyBSz,
+                                        const byte* entropyA_param, word32 entropyASz,
+                                        const byte* entropyB_param, word32 entropyBSz,
                                         byte* output, word32 outputSz);
 #endif /* HAVE_HASHDRBG */
 
