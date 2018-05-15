@@ -228,13 +228,13 @@ WOLFSSL_API int wc_RsaSetRNG(RsaKey* key, WC_RNG* rng);
 
 WOLFSSL_API int  wc_RsaPublicEncrypt_ex(const byte* in, word32 inLen, byte* out,
                    word32 outLen, RsaKey* key, WC_RNG* rng, int type,
-                   enum wc_HashType hash, int mgf, byte* label, word32 lableSz);
+                   enum wc_HashType hash, int mgf, byte* label, word32 labelSz);
 WOLFSSL_API int  wc_RsaPrivateDecrypt_ex(const byte* in, word32 inLen,
                    byte* out, word32 outLen, RsaKey* key, int type,
-                   enum wc_HashType hash, int mgf, byte* label, word32 lableSz);
+                   enum wc_HashType hash, int mgf, byte* label, word32 labelSz);
 WOLFSSL_API int  wc_RsaPrivateDecryptInline_ex(byte* in, word32 inLen,
-                      byte** out, RsaKey* key, int type, enum wc_HashType hash,
-                      int mgf, byte* label, word32 lableSz);
+                   byte** out, RsaKey* key, int type, enum wc_HashType hash,
+                   int mgf, byte* label, word32 labelSz);
 WOLFSSL_API int wc_RsaDirect(byte* in, word32 inLen, byte* out, word32* outSz,
                    RsaKey* key, int type, WC_RNG* rng);
 #endif /* HAVE_FIPS*/

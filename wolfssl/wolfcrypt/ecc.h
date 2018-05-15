@@ -405,10 +405,10 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 #ifdef HAVE_ECC_VERIFY
 WOLFSSL_API
 int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
-                    word32 hashlen, int* stat, ecc_key* key);
+                       word32 hashlen, int* res, ecc_key* key);
 WOLFSSL_API
 int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
-                          word32 hashlen, int* stat, ecc_key* key);
+                          word32 hashlen, int* res, ecc_key* key);
 #endif /* HAVE_ECC_VERIFY */
 
 WOLFSSL_API
@@ -455,11 +455,11 @@ int wc_ecc_get_curve_id_from_params(int fieldSize,
 WOLFSSL_API
 ecc_point* wc_ecc_new_point(void);
 WOLFSSL_API
-ecc_point* wc_ecc_new_point_h(void* h);
+ecc_point* wc_ecc_new_point_h(void* heap);
 WOLFSSL_API
 void wc_ecc_del_point(ecc_point* p);
 WOLFSSL_API
-void wc_ecc_del_point_h(ecc_point* p, void* h);
+void wc_ecc_del_point_h(ecc_point* p, void* heap);
 WOLFSSL_API
 int wc_ecc_copy_point(ecc_point* p, ecc_point *r);
 WOLFSSL_API
@@ -480,9 +480,10 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
 #ifdef HAVE_ECC_KEY_EXPORT
 /* ASN key helpers */
 WOLFSSL_API
-int wc_ecc_export_x963(ecc_key*, byte* out, word32* outLen);
+int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen);
 WOLFSSL_API
-int wc_ecc_export_x963_ex(ecc_key*, byte* out, word32* outLen, int compressed);
+int wc_ecc_export_x963_ex(ecc_key* key, byte* out, word32* outLen,
+                          int compressed);
     /* extended functionality with compressed option */
 #endif /* HAVE_ECC_KEY_EXPORT */
 
