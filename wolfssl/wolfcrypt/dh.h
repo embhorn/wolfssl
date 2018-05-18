@@ -84,7 +84,7 @@ WOLFSSL_API int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz,
                        word32 pubSz);
 
 WOLFSSL_API int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key,
-                           word32);
+                               word32 inSz);
 WOLFSSL_API int wc_DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
                         word32 gSz);
 WOLFSSL_API int wc_DhSetKey_ex(DhKey* key, const byte* p, word32 pSz,

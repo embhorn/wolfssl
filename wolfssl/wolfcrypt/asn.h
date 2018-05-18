@@ -283,7 +283,7 @@ enum Key_Sum {
     NTRUk    = 274,
     ECDSAk   = 518,
     ED25519k = 256
-};
+} Key_Sum;
 
 
 #ifndef NO_AES
@@ -782,7 +782,7 @@ WOLFSSL_ASN_API int  ParseCert(DecodedCert*, int type, int verify, void* cm);
 
 WOLFSSL_LOCAL int DecodePolicyOID(char *o, word32 oSz, byte *in, word32 inSz);
 WOLFSSL_LOCAL int ParseCertRelative(DecodedCert*,int type,int verify,void* cm);
-WOLFSSL_LOCAL int DecodeToKey(DecodedCert*, int verify);
+WOLFSSL_LOCAL int DecodeToKey(DecodedCert* cert, int verify);
 
 WOLFSSL_LOCAL const byte* OidFromId(word32 id, word32 type, word32* oidSz);
 WOLFSSL_LOCAL Signer* MakeSigner(void*);
@@ -793,16 +793,17 @@ WOLFSSL_LOCAL void    FreeTrustedPeer(TrustedPeerCert*, void*);
 WOLFSSL_LOCAL void    FreeTrustedPeerTable(TrustedPeerCert**, int, void*);
 #endif /* WOLFSSL_TRUST_PEER_CERT */
 
-WOLFSSL_ASN_API int ToTraditional(byte* buffer, word32 length);
+WOLFSSL_ASN_API int ToTraditional(byte* input, word32 sz);
 WOLFSSL_LOCAL int ToTraditionalInline(const byte* input, word32* inOutIdx,
-                                      word32 length);
-WOLFSSL_LOCAL int ToTraditionalEnc(byte* buffer, word32 length,const char*,int);
+                                      word32 sz);
+WOLFSSL_LOCAL int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz);
 WOLFSSL_ASN_API int UnTraditionalEnc(byte* key, word32 keySz, byte* out,
         word32* outSz, const char* password, int passwordSz, int vPKCS,
         int vAlgo, byte* salt, word32 saltSz, int itt, WC_RNG* rng, void* heap);
-WOLFSSL_LOCAL int DecryptContent(byte* input, word32 sz,const char* psw,int pswSz);
-WOLFSSL_LOCAL int EncryptContent(byte* input, word32 sz, byte* out, word32* outSz,
-        const char* password,int passwordSz, int vPKCS, int vAlgo,
+WOLFSSL_LOCAL int DecryptContent(byte* input, word32 sz,const char* password,
+                                 int passwordSz);
+WOLFSSL_LOCAL int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
+        const char* password, int passwordSz, int vPKCS, int vAlgo,
         byte* salt, word32 saltSz, int itt, WC_RNG* rng, void* heap);
 WOLFSSL_LOCAL int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID,
         word32* oidSz, int* algoID, void* heap);
@@ -813,7 +814,7 @@ typedef struct tm wolfssl_tm;
 WOLFSSL_LOCAL int GetTimeString(byte* date, int format, char* buf, int len);
 #endif
 WOLFSSL_LOCAL int ExtractDate(const unsigned char* date, unsigned char format,
-                                                 wolfssl_tm* certTime, int* idx);
+                              struct tm* certTime, int* idx);
 WOLFSSL_LOCAL int ValidateDate(const byte* date, byte format, int dateType);
 
 /* ASN.1 helper functions */

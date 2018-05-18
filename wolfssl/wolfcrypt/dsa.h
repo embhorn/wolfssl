@@ -67,9 +67,9 @@ WOLFSSL_API int wc_DsaSign(const byte* digest, byte* out,
 WOLFSSL_API int wc_DsaVerify(const byte* digest, const byte* sig,
                              DsaKey* key, int* answer);
 WOLFSSL_API int wc_DsaPublicKeyDecode(const byte* input, word32* inOutIdx,
-                                      DsaKey*, word32);
+                                      DsaKey* key, word32 inSz);
 WOLFSSL_API int wc_DsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
-                                       DsaKey*, word32);
+                                       DsaKey* key, word32 inSz);
 WOLFSSL_API int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen);
 
 #ifdef WOLFSSL_KEY_GEN

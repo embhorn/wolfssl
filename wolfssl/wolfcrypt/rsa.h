@@ -197,9 +197,9 @@ WOLFSSL_API int  wc_RsaEncryptSize(RsaKey* key);
 	(defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
 /* to avoid asn duplicate symbols @wc_fips */
 WOLFSSL_API int  wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
-                                                               RsaKey*, word32);
+                                        RsaKey* key, word32 inSz);
 WOLFSSL_API int  wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx,
-                                                               RsaKey*, word32);
+                                       RsaKey* key, word32 inSz);
 WOLFSSL_API int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
                                         const byte* e, word32 eSz, RsaKey* key);
 #ifdef WOLFSSL_KEY_GEN
