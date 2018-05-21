@@ -778,10 +778,12 @@ WOLFSSL_ASN_API void FreeAltNames(DNS_entry*, void*);
 #endif /* IGNORE_NAME_CONSTRAINTS */
 WOLFSSL_ASN_API void InitDecodedCert(DecodedCert*, byte*, word32, void*);
 WOLFSSL_ASN_API void FreeDecodedCert(DecodedCert*);
-WOLFSSL_ASN_API int  ParseCert(DecodedCert*, int type, int verify, void* cm);
+WOLFSSL_ASN_API int  ParseCert(DecodedCert* cert, int type,
+                               int verify, void* cm);
 
 WOLFSSL_LOCAL int DecodePolicyOID(char *o, word32 oSz, byte *in, word32 inSz);
-WOLFSSL_LOCAL int ParseCertRelative(DecodedCert*,int type,int verify,void* cm);
+WOLFSSL_LOCAL int ParseCertRelative(DecodedCert* cert, int type,
+                                    int verify, void* cm);
 WOLFSSL_LOCAL int DecodeToKey(DecodedCert* cert, int verify);
 
 WOLFSSL_LOCAL const byte* OidFromId(word32 id, word32 type, word32* oidSz);
@@ -875,11 +877,10 @@ WOLFSSL_LOCAL void FreeSignatureCtx(SignatureCtx* sigCtx);
 
 #ifndef NO_CERTS
 
-WOLFSSL_LOCAL int PemToDer(const unsigned char* buff, long sz, int type,
-                          DerBuffer** pDer, void* heap, EncryptedInfo* info,
-                          int* eccKey);
-WOLFSSL_LOCAL int AllocDer(DerBuffer** der, word32 length, int type, void* heap);
-WOLFSSL_LOCAL void FreeDer(DerBuffer** der);
+WOLFSSL_LOCAL int PemToDer(const unsigned char* buff, long longSz, int type,
+            DerBuffer** pDer, void* heap, EncryptedInfo* info, int* eccKey);
+WOLFSSL_LOCAL int AllocDer(DerBuffer** pDer, word32 length, int type, void* heap);
+WOLFSSL_LOCAL void FreeDer(DerBuffer** pDer);
 
 #endif /* !NO_CERTS */
 
