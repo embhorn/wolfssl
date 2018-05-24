@@ -291,7 +291,7 @@ MP_API void mp_zero (mp_int * a);
 MP_API void mp_clamp (mp_int * a);
 MP_API void mp_exch (mp_int * a, mp_int * b);
 MP_API void mp_rshd (mp_int * a, int b);
-MP_API void mp_rshb (mp_int * a, int b);
+MP_API void mp_rshb (mp_int *c, int x);
 MP_API int  mp_mod_2d (mp_int * a, int b, mp_int * c);
 MP_API int  mp_mul_2d (mp_int * a, int b, mp_int * c);
 MP_API int  mp_lshd (mp_int * a, int b);

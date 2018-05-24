@@ -119,7 +119,7 @@ MP_API int sp_read_radix(sp_int* a, const char* in, int radix);
 MP_API int sp_cmp(sp_int* a, sp_int* b);
 MP_API int sp_count_bits(sp_int* a);
 MP_API int sp_leading_bit(sp_int* a);
-MP_API int sp_to_unsigned_bin(sp_int* a, byte* in);
+MP_API int sp_to_unsigned_bin(sp_int* a, byte* out);
 MP_API void sp_forcezero(sp_int* a);
 MP_API int sp_copy(sp_int* a, sp_int* b);
 MP_API int sp_set(sp_int* a, sp_int_digit d);

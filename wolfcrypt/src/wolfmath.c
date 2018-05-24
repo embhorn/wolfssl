@@ -62,7 +62,7 @@
     {
     #if defined(WC_64BIT_CPU)
         W64LIT(0x0000000000000000),
-        W64LIT(0xffffffffffffffff)
+        W64LIT(0xffffffffffffffffU)
     #elif defined(WC_16BIT_CPU)
         0x0000U,
         0xffffU
@@ -77,18 +77,20 @@
 
 int get_digit_count(mp_int* a)
 {
-    if (a == NULL)
+    if (a == NULL) {
         return 0;
+    }
 
     return a->used;
 }
 
 mp_digit get_digit(mp_int* a, int n)
 {
-    if (a == NULL)
+    if (a == NULL) {
         return 0;
+    }
 
-    return (n >= a->used || n < 0) ? 0 : a->dp[n];
+    return ((n >= a->used) || (n < 0)) ? (mp_digit)0 : a->dp[n];
 }
 
 int get_rand_digit(WC_RNG* rng, mp_digit* d)
@@ -156,10 +158,11 @@ int wc_bigint_alloc(WC_BIGINT* a, word32 sz)
 {
     int err = MP_OKAY;
 
-    if (a == NULL)
+    if (a == NULL) {
         return BAD_FUNC_ARG;
+    }
 
-    if (sz > 0) {
+    if (sz > 0U) {
         if (a->buf && sz > a->len) {
             wc_bigint_free(a);
         }
@@ -183,8 +186,9 @@ int wc_bigint_from_unsigned_bin(WC_BIGINT* a, const byte* in, word32 inlen)
 {
     int err;
 
-    if (a == NULL || in == NULL || inlen == 0)
+    if (a == NULL || in == NULL || inlen == 0U) {
         return BAD_FUNC_ARG;
+    }
 
     err = wc_bigint_alloc(a, inlen);
     if (err == 0) {
@@ -198,8 +202,9 @@ int wc_bigint_to_unsigned_bin(WC_BIGINT* a, byte* out, word32* outlen)
 {
     word32 sz;
 
-    if (a == NULL || out == NULL || outlen == NULL || *outlen == 0)
+    if (a == NULL || out == NULL || outlen == NULL || *outlen == 0U) {
         return BAD_FUNC_ARG;
+    }
 
     /* trim to fit into output buffer */
     sz = a->len;
@@ -208,7 +213,7 @@ int wc_bigint_to_unsigned_bin(WC_BIGINT* a, byte* out, word32* outlen)
         sz = *outlen;
     }
 
-    if (a->buf) {
+    if (a->buf != NULL) {
         XMEMCPY(out, a->buf, sz);
     }
 
@@ -219,15 +224,15 @@ int wc_bigint_to_unsigned_bin(WC_BIGINT* a, byte* out, word32* outlen)
 
 void wc_bigint_zero(WC_BIGINT* a)
 {
-    if (a && a->buf) {
+    if (a != NULL && a->buf != NULL) {
         ForceZero(a->buf, a->len);
     }
 }
 
 void wc_bigint_free(WC_BIGINT* a)
 {
-    if (a) {
-        if (a->buf) {
+    if (a != NULL) {
+        if (a->buf != NULL) {
           XFREE(a->buf, a->heap, DYNAMIC_TYPE_WOLF_BIGINT);
         }
         a->buf = NULL;
@@ -244,13 +249,15 @@ int wc_mp_to_bigint_sz(mp_int* src, WC_BIGINT* dst, word32 sz)
     int err;
     word32 x, y;
 
-    if (src == NULL || dst == NULL)
+    if (src == NULL || dst == NULL) {
         return BAD_FUNC_ARG;
+    }
 
     /* get size of source */
-    x = mp_unsigned_bin_size(src);
-    if (sz < x)
+    x = (word32)mp_unsigned_bin_size(src);
+    if (sz < x) {
         sz = x;
+    }
 
     /* make sure destination is allocated and large enough */
     err = wc_bigint_alloc(dst, sz);
@@ -269,8 +276,9 @@ int wc_mp_to_bigint_sz(mp_int* src, WC_BIGINT* dst, word32 sz)
 
 int wc_mp_to_bigint(mp_int* src, WC_BIGINT* dst)
 {
-    if (src == NULL || dst == NULL)
+    if (src == NULL || dst == NULL) {
         return BAD_FUNC_ARG;
+    }
 
     return wc_mp_to_bigint_sz(src, dst, 0);
 }
@@ -279,13 +287,15 @@ int wc_bigint_to_mp(WC_BIGINT* src, mp_int* dst)
 {
     int err;
 
-    if (src == NULL || dst == NULL)
+    if (src == NULL || dst == NULL) {
         return BAD_FUNC_ARG;
+    }
 
-    if (src->buf == NULL)
+    if (src->buf == NULL) {
         return BAD_FUNC_ARG;
+    }
 
-    err = mp_read_unsigned_bin(dst, src->buf, src->len);
+    err = mp_read_unsigned_bin(dst, src->buf, (int)src->len);
     wc_bigint_free(src);
 
     return err;

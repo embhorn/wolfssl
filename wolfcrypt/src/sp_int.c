@@ -101,8 +101,9 @@ void sp_clear(sp_int* a)
 {
     int i;
 
-    for (i=0; i<a->used; i++)
+    for (i=0; i<a->used; i++) {
         a->dp[i] = 0;
+    }
     a->used = 0;
 }
 
@@ -129,29 +130,33 @@ int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz)
     int i, j = 0, s = 0;
 
     a->dp[0] = 0;
-    for (i = inSz-1; i >= 0; i--) {
-        a->dp[j] |= ((sp_int_digit)in[i]) << s;
+    for (i = (int)inSz-1; i >= 0; i--) {
+        a->dp[j] |= ((sp_int_digit)in[i]) << (word32)s;
         if (s == DIGIT_BIT - 8) {
             a->dp[++j] = 0;
             s = 0;
         }
         else if (s > DIGIT_BIT - 8) {
             s = DIGIT_BIT - s;
-            if (j + 1 >= a->size)
+            if (j + 1 >= a->size) {
                 break;
-            a->dp[++j] = in[i] >> s;
+            }
+            a->dp[++j] = (word32)in[i] >> (word32)s;
             s = 8 - s;
         }
-        else
+        else {
             s += 8;
+        }
     }
 
     a->used = j + 1;
-    if (a->dp[j] == 0)
+    if (a->dp[j] == 0U) {
         a->used--;
+    }
 
-    for (j++; j < a->size; j++)
+    for (j++; j < a->size; j++) {
         a->dp[j] = 0;
+    }
 
     return MP_OKAY;
 }
@@ -170,9 +175,11 @@ int sp_read_radix(sp_int* a, const char* in, int radix)
 {
     int     i, j, k;
     char    ch;
+    word32 tmp;
 
-    if (radix != 16)
+    if (radix != 16) {
         return BAD_FUNC_ARG;
+    }
 
     if (*in == '-') {
         return BAD_FUNC_ARG;
@@ -181,30 +188,38 @@ int sp_read_radix(sp_int* a, const char* in, int radix)
     j = 0;
     k = 0;
     a->dp[0] = 0;
-    for (i = (int)(XSTRLEN(in) - 1); i >= 0; i--) {
+    for (i = (int)XSTRLEN(in) - 1; i >= 0; i--) {
         ch = in[i];
-        if (ch >= '0' && ch <= '9')
+        if (ch >= '0' && ch <= '9') {
             ch -= '0';
-        else if (ch >= 'A' && ch <= 'F')
+        }
+        else if (ch >= 'A' && ch <= 'F') {
             ch -= 'A' - 10;
-        else if (ch >= 'a' && ch <= 'f')
+        }
+        else if (ch >= 'a' && ch <= 'f') {
             ch -= 'a' - 10;
-        else
+        }
+        else {
             return MP_VAL;
+        }
 
-        a->dp[k] |= ((sp_int_digit)ch) << j;
+        a->dp[k] |= ((sp_int_digit)ch) << (word32)j;
         j += 4;
-        if (j == DIGIT_BIT && k < SP_INT_DIGITS)
+        if ((j == DIGIT_BIT) && (k < SP_INT_DIGITS)) {
             a->dp[++k] = 0;
-        j &= DIGIT_BIT - 1;
+        }
+        tmp = (word32)j & ((word32)DIGIT_BIT - 1U);
+        j = (int)tmp;
     }
 
     a->used = k + 1;
-    if (a->dp[k] == 0)
+    if (a->dp[k] == 0U) {
         a->used--;
+    }
 
-    for (k++; k < a->size; k++)
+    for (k++; k < a->size; k++) {
         a->dp[k] = 0;
+    }
 
     return MP_OKAY;
 }
@@ -220,16 +235,26 @@ int sp_cmp(sp_int* a, sp_int* b)
 {
     int i;
 
-    if (a->used > b->used)
+    if (a->used > b->used) {
         return MP_GT;
-    else if (a->used < b->used)
+    }
+    else if (a->used < b->used) {
         return MP_LT;
+    }
+    else {
+        /* Do nothing */
+    }
 
     for (i = a->used - 1; i >= 0; i--) {
-        if (a->dp[i] > b->dp[i])
+        if (a->dp[i] > b->dp[i]) {
             return MP_GT;
-        else if (a->dp[i] < b->dp[i])
+        }
+        else if (a->dp[i] < b->dp[i]) {
             return MP_LT;
+        }
+        else {
+            /* Do nothing */
+        }
     }
     return MP_EQ;
 }
@@ -245,14 +270,16 @@ int sp_count_bits(sp_int* a)
     sp_int_digit d;
 
     r = a->used - 1;
-    while (r >= 0 && a->dp[r] == 0)
+    while ((r >= 0) && (a->dp[r] == 0U)) {
         r--;
-    if (r < 0)
+    }
+    if (r < 0) {
         r = 0;
+    }
     else {
         d = a->dp[r];
         r *= DIGIT_BIT;
-        while (d != 0) {
+        while (d != (sp_int_digit)0) {
             r++;
             d >>= 1;
         }
@@ -273,10 +300,14 @@ int sp_leading_bit(sp_int* a)
     sp_int_digit d;
 
     if (a->used > 0) {
+        word32 tmp;
+
         d = a->dp[a->used - 1];
-        while (d > (sp_int_digit)0xff)
+        while (d > (sp_int_digit)0xff) {
             d >>= 8;
-        bit = (int)(d >> 7);
+        }
+        tmp = (word32)d >> 7U;
+        bit = (int)tmp;
     }
 
     return bit;
@@ -296,9 +327,10 @@ int sp_to_unsigned_bin(sp_int* a, byte* out)
     j = sp_unsigned_bin_size(a) - 1;
     for (i=0; j>=0; i++) {
         for (b = 0; b < SP_WORD_SIZE; b += 8) {
-            out[j--] = a->dp[i] >> b;
-            if (j < 0)
+            out[j--] = (byte)a->dp[i] >> (word32)b;
+            if (j < 0) {
                 break;
+            }
         }
     }
 
@@ -311,7 +343,7 @@ int sp_to_unsigned_bin(sp_int* a, byte* out)
  */
 void sp_forcezero(sp_int* a)
 {
-    ForceZero(a->dp, a->used * sizeof(sp_int_digit));
+    ForceZero(a->dp, (word32)a->used * sizeof(sp_int_digit));
     a->used = 0;
 }
 
@@ -324,7 +356,7 @@ void sp_forcezero(sp_int* a)
 int sp_copy(sp_int* a, sp_int* b)
 {
     if (a != b) {
-        XMEMCPY(b->dp, a->dp, a->used * sizeof(sp_int_digit));
+        XMEMCPY(b->dp, a->dp, (word32)a->used * sizeof(sp_int_digit));
         b->used = a->used;
     }
     return MP_OKAY;
@@ -350,7 +382,7 @@ int sp_set(sp_int* a, sp_int_digit d)
  */
 int sp_iszero(sp_int* a)
 {
-    return a->used == 0;
+    return (a->used == 0) ? (int)1 : (int)0;
 }
 
 /* Recalculate the number of digits used.
@@ -361,7 +393,7 @@ void sp_clamp(sp_int* a)
 {
     int i;
 
-    for (i = a->used - 1; i >= 0 && a->dp[i] == 0; i--) {
+    for (i = a->used - 1; (i >= 0) && (a->dp[i] == 0U); i--) {
     }
     a->used = i + 1;
 }
@@ -376,8 +408,9 @@ void sp_clamp(sp_int* a)
  */
 int sp_grow(sp_int* a, int l)
 {
-    if (l > a->size)
+    if (l > a->size) {
         return MP_MEM;
+    }
     (void)a;
     (void)l;
     return MP_OKAY;
@@ -398,13 +431,15 @@ int sp_sub_d(sp_int* a, sp_int_digit d, sp_int* r)
     r->dp[0] = a->dp[0] - d;
     if (r->dp[i] > a->dp[i]) {
         for (; i < a->used; i++) {
-            r->dp[i] = a->dp[i] - 1;
-            if (r->dp[i] != (sp_int_digit)-1)
+            r->dp[i] = a->dp[i] - 1U;
+            if (r->dp[i] != (sp_int_digit)-1) {
                break;
+            }
         }
     }
-    for (; i < a->used; i++)
+    for (; i < a->used; i++) {
         r->dp[i] = a->dp[i];
+    }
 
     return MP_OKAY;
 }
@@ -420,19 +455,30 @@ int sp_cmp_d(sp_int *a, sp_int_digit d)
 {
     /* special case for zero*/
     if (a->used == 0) {
-        if (d == 0)
+        if (d == (sp_int_digit)0) {
             return MP_EQ;
-        else
+        }
+        else {
             return MP_LT;
+        }
     }
-    else if (a->used > 1)
+    else if (a->used > 1) {
         return MP_GT;
+    }
+    else {
+        /* Do nothing */
+    }
 
     /* compare the only digit of a to d */
-    if (a->dp[0] > d)
+    if (a->dp[0] > d) {
         return MP_GT;
-    else if (a->dp[0] < d)
+    }
+    else if (a->dp[0] < d) {
         return MP_LT;
+    }
+    else {
+        /* Do nothing */
+    }
     return MP_EQ;
 }
 
@@ -448,20 +494,22 @@ static int sp_lshb(sp_int* a, int n)
     int i;
 
     if (n >= SP_WORD_SIZE) {
-        sp_lshd(a, n / SP_WORD_SIZE);
+        (void)sp_lshd(a, n / SP_WORD_SIZE);
         n %= SP_WORD_SIZE;
     }
 
-    if (n == 0)
+    if (n == 0) {
         return MP_OKAY;
+    }
 
     a->dp[a->used] = 0;
     for (i = a->used - 1; i >= 0; i--) {
-        a->dp[i+1] |= a->dp[i] >> (SP_WORD_SIZE - n);
-        a->dp[i] = a->dp[i] << n;
+        a->dp[i+1] |= a->dp[i] >> ((word32)SP_WORD_SIZE - (word32)n);
+        a->dp[i] = a->dp[i] << (word32)n;
     }
-    if (a->dp[a->used] != 0)
+    if (a->dp[a->used] != 0U) {
         a->used++;
+    }
 
     return MP_OKAY;
 }
@@ -482,15 +530,17 @@ static int sp_sub(sp_int* a, sp_int* b, sp_int* r)
 
     for (i = 0; i < a->used && i < b->used; i++) {
         t = a->dp[i] - b->dp[i] - c;
-        if (c == 0)
-            c = t > a->dp[i];
-        else
-            c = t >= a->dp[i];
+        if (c == 0U) {
+            c = (t > a->dp[i]) ? (sp_int_digit)1 : (sp_int_digit)0;
+        }
+        else {
+            c = (t >= a->dp[i]) ? (sp_int_digit)1 : (sp_int_digit)0;
+        }
         r->dp[i] = t;
     }
     for (; i < a->used; i++) {
         r->dp[i] = a->dp[i] - c;
-        c = r->dp[i] == (sp_int_digit)-1;
+        c = (r->dp[i] == (sp_int_digit)-1) ? (sp_int_digit)1 : (sp_int_digit)0;
     }
     r->used = i;
     sp_clamp(r);
@@ -511,25 +561,27 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
     int mBits = sp_count_bits(m);
     int rBits;
 
-    if (a != r)
-        sp_copy(a, r);
-    sp_init(&t);
+    if (a != r) {
+        (void)sp_copy(a, r);
+    }
+    (void)sp_init(&t);
 
     rBits = sp_count_bits(r);
     while (rBits > mBits) {
-        sp_copy(m, &t);
-        sp_lshb(&t, rBits - mBits);
+        (void)sp_copy(m, &t);
+        (void)sp_lshb(&t, rBits - mBits);
 
         if (sp_cmp(&t, r) == MP_GT) {
-            sp_copy(m, &t);
-            sp_lshb(&t, rBits - mBits - 1);
+            (void)sp_copy(m, &t);
+            (void)sp_lshb(&t, rBits - mBits - 1);
         }
-        sp_sub(r, &t, r);
+        (void)sp_sub(r, &t, r);
 
         rBits = sp_count_bits(r);
     }
-    if (sp_cmp(r, m) != MP_LT)
-        sp_sub(r, m, r);
+    if (sp_cmp(r, m) != MP_LT) {
+        (void)sp_sub(r, m, r);
+    }
 
     return MP_OKAY;
 }
@@ -541,7 +593,7 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
  */
 void sp_zero(sp_int* a)
 {
-    XMEMSET(a->dp, 0, a->size);
+    XMEMSET(a->dp, 0, (word32)a->size);
     a->used = 0;
 }
 
@@ -560,9 +612,10 @@ int sp_add_d(sp_int* a, sp_int_digit d, sp_int* r)
     r->dp[0] = a->dp[0] + d;
     if (r->dp[i] < a->dp[i]) {
         for (; i < a->used; i++) {
-            r->dp[i] = a->dp[i] + 1;
-            if (r->dp[i] != 0)
+            r->dp[i] = a->dp[i] + 1U;
+            if (r->dp[i] != 0U) {
                break;
+            }
         }
 
         if (i == a->used) {
@@ -570,8 +623,9 @@ int sp_add_d(sp_int* a, sp_int_digit d, sp_int* r)
             r->dp[i] = 1;
         }
     }
-    for (; i < a->used; i++)
+    for (; i < a->used; i++) {
         r->dp[i] = a->dp[i];
+    }
 
     return MP_OKAY;
 }
@@ -585,12 +639,13 @@ int sp_add_d(sp_int* a, sp_int_digit d, sp_int* r)
  */
 int sp_lshd(sp_int* a, int s)
 {
-    if (a->used + s > a->size)
+    if (a->used + s > a->size) {
         a->used = a->size - s;
+    }
 
-    XMEMMOVE(a->dp + s, a->dp, a->used * SP_INT_DIGITS);
+    XMEMMOVE(a->dp + s, a->dp, (word32)a->used * (word32)SP_INT_DIGITS);
     a->used += s;
-    XMEMSET(a->dp, 0, s * sizeof(sp_int_digit));
+    XMEMSET(a->dp, 0, (word32)s * sizeof(sp_int_digit));
 
     return MP_OKAY;
 }
@@ -611,23 +666,25 @@ int sp_add(sp_int* a, sp_int* b, sp_int* r)
     sp_digit t;
 
     for (i = 0; i < a->used && i < b->used; i++) {
-        t = a->dp[i] + b->dp[i] + c;
-        if (c == 0)
-            c = t < a->dp[i];
-        else
-            c = t <= a->dp[i];
-        r->dp[i] = t;
+        t = (sp_digit)a->dp[i] + (sp_digit)b->dp[i] + c;
+        if (c == 0) {
+            c = (t < (sp_digit)a->dp[i]) ? (sp_digit)1 : (sp_digit)0;
+        }
+        else {
+            c = (t <= (sp_digit)a->dp[i]) ? (sp_digit)1 : (sp_digit)0;
+        }
+        r->dp[i] = (word32)t;
     }
     for (; i < a->used; i++) {
-        r->dp[i] = a->dp[i] + c;
-        c = r->dp[i] == 0;
+        r->dp[i] = a->dp[i] + (word32)c;
+        c = (r->dp[i] == 0U) ? (sp_digit)1 : (sp_digit)0;
     }
     for (; i < b->used; i++) {
-        r->dp[i] = b->dp[i] + c;
-        c = r->dp[i] == 0;
+        r->dp[i] = b->dp[i] + (word32)c;
+        c = (r->dp[i] == 0U) ? (sp_digit)1 : (sp_digit)0;
     }
-    r->dp[i] = c;
-    r->used = (int)(i + c);
+    r->dp[i] = (word32)c;
+    r->used = i + (int)c;
 
     return MP_OKAY;
 }

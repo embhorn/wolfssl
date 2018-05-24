@@ -399,11 +399,11 @@ MP_API void fp_forcezero (fp_int * a);
 MP_API void fp_free(fp_int* a);
 
 /* zero/even/odd ? */
-#define fp_iszero(a) (((a)->used == 0) ? FP_YES : FP_NO)
+#define fp_iszero(a) (((a)->used == 0) ? (int)FP_YES : (int)FP_NO)
 #define fp_isone(a) \
-    ((((a)->used == 1) && ((a)->dp[0] == 1)) ? FP_YES : FP_NO)
-#define fp_iseven(a) (((a)->used > 0 && (((a)->dp[0] & 1) == 0)) ? FP_YES : FP_NO)
-#define fp_isodd(a)  (((a)->used > 0  && (((a)->dp[0] & 1) == 1)) ? FP_YES : FP_NO)
+    ((((a)->used == 1) && ((a)->dp[0] == 1U)) ? (int)FP_YES : (int)FP_NO)
+#define fp_iseven(a) (((a)->used > 0 && (((a)->dp[0] & 1U) == 0U)) ? (int)FP_YES : (int)FP_NO)
+#define fp_isodd(a)  (((a)->used > 0  && (((a)->dp[0] & 1U) == 1U)) ? (int)FP_YES : (int)FP_NO)
 #define fp_isneg(a)  (((a)->sign != 0) ? FP_YES : FP_NO)
 
 /* set to a small digit */
@@ -420,7 +420,7 @@ void fp_copy(fp_int *a, fp_int *b);
 void fp_init_copy(fp_int *a, fp_int *b);
 
 /* clamp digits */
-#define fp_clamp(a)   { while ((a)->used && (a)->dp[(a)->used-1] == 0) --((a)->used); (a)->sign = (a)->used ? (a)->sign : FP_ZPOS; }
+#define fp_clamp(a)   { while (((a)->used != 0) && (a)->dp[(a)->used-1] == 0U) {--((a)->used);} (a)->sign = ((a)->used != 0) ? (a)->sign : FP_ZPOS; }
 #define mp_clamp(a)   fp_clamp(a)
 #define mp_grow(a,s)  MP_OKAY
 
@@ -432,7 +432,7 @@ void fp_init_copy(fp_int *a, fp_int *b);
 void fp_rshd(fp_int *a, int x);
 
 /* right shift x bits */
-void fp_rshb(fp_int *a, int x);
+void fp_rshb(fp_int *c, int x);
 
 /* left shift x digits */
 void fp_lshd(fp_int *a, int x);
@@ -448,8 +448,8 @@ void fp_div_2d(fp_int *a, int b, fp_int *c, fp_int *d);
 void fp_mod_2d(fp_int *a, int b, fp_int *c);
 void fp_mul_2d(fp_int *a, int b, fp_int *c);
 void fp_2expt (fp_int *a, int b);
-void fp_mul_2(fp_int *a, fp_int *c);
-void fp_div_2(fp_int *a, fp_int *c);
+void fp_mul_2(fp_int *a, fp_int *b);
+void fp_div_2(fp_int *a, fp_int *b);
 
 /* Counts the number of lsbs which are zero before the first zero bit */
 int fp_cnt_lsb(fp_int *a);
@@ -461,10 +461,10 @@ void fp_add(fp_int *a, fp_int *b, fp_int *c);
 void fp_sub(fp_int *a, fp_int *b, fp_int *c);
 
 /* c = a * b */
-void fp_mul(fp_int *a, fp_int *b, fp_int *c);
+void fp_mul(fp_int *A, fp_int *B, fp_int *C);
 
 /* b = a*a  */
-void fp_sqr(fp_int *a, fp_int *b);
+void fp_sqr(fp_int *A, fp_int *B);
 
 /* a/b => cb + d == a */
 int fp_div(fp_int *a, fp_int *b, fp_int *c, fp_int *d);
@@ -519,7 +519,7 @@ int fp_invmod(fp_int *a, fp_int *b, fp_int *c);
 /*void fp_lcm(fp_int *a, fp_int *b, fp_int *c);*/
 
 /* setups the montgomery reduction */
-int fp_montgomery_setup(fp_int *a, fp_digit *mp);
+int fp_montgomery_setup(fp_int *a, fp_digit *rho);
 
 /* computes a = B**n mod b without division or multiplication useful for
  * normalizing numbers in a Montgomery system.
@@ -530,7 +530,7 @@ void fp_montgomery_calc_normalization(fp_int *a, fp_int *b);
 void fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp);
 
 /* d = a**b (mod c) */
-int fp_exptmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d);
+int fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y);
 
 /* primality stuff */
 
@@ -579,7 +579,7 @@ void s_fp_add(fp_int *a, fp_int *b, fp_int *c);
 void s_fp_sub(fp_int *a, fp_int *b, fp_int *c);
 void fp_reverse(unsigned char *s, int len);
 
-void fp_mul_comba(fp_int *a, fp_int *b, fp_int *c);
+void fp_mul_comba(fp_int *A, fp_int *B, fp_int *C);
 
 void fp_mul_comba_small(fp_int *a, fp_int *b, fp_int *c);
 void fp_mul_comba3(fp_int *a, fp_int *b, fp_int *c);
@@ -596,7 +596,7 @@ void fp_mul_comba28(fp_int *a, fp_int *b, fp_int *c);
 void fp_mul_comba32(fp_int *a, fp_int *b, fp_int *c);
 void fp_mul_comba48(fp_int *a, fp_int *b, fp_int *c);
 void fp_mul_comba64(fp_int *a, fp_int *b, fp_int *c);
-void fp_sqr_comba(fp_int *a, fp_int *b);
+void fp_sqr_comba(fp_int *A, fp_int *B);
 void fp_sqr_comba_small(fp_int *a, fp_int *b);
 void fp_sqr_comba3(fp_int *a, fp_int *b);
 void fp_sqr_comba4(fp_int *a, fp_int *b);
@@ -673,7 +673,7 @@ MP_API int  mp_submod (mp_int* a, mp_int* b, mp_int* c, mp_int* d);
 MP_API int  mp_addmod (mp_int* a, mp_int* b, mp_int* c, mp_int* d);
 MP_API int  mp_mod(mp_int *a, mp_int *b, mp_int *c);
 MP_API int  mp_invmod(mp_int *a, mp_int *b, mp_int *c);
-MP_API int  mp_exptmod (mp_int * g, mp_int * x, mp_int * p, mp_int * y);
+MP_API int  mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y);
 MP_API int  mp_mul_2d(mp_int *a, int b, mp_int *c);
 MP_API int  mp_2expt(mp_int* a, int b);
 

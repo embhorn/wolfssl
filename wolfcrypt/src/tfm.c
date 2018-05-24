@@ -120,7 +120,7 @@ void s_fp_add(fp_int *a, fp_int *b, fp_int *c)
       c->dp[x]   = (fp_digit)t;
       t        >>= DIGIT_BIT;
   }
-  if (t != 0 && x < FP_SIZE) {
+  if ((t != 0U) && (x < FP_SIZE)) {
      c->dp[c->used++] = (fp_digit)t;
      ++x;
   }
@@ -162,7 +162,7 @@ void fp_sub(fp_int *a, fp_int *b, fp_int *c)
     } else {
       /* The result has the *opposite* sign from */
       /* the first number. */
-      c->sign = (sa == FP_ZPOS) ? FP_NEG : FP_ZPOS;
+      c->sign = (sa == FP_ZPOS) ? (int)FP_NEG : (int)FP_ZPOS;
       /* The second has a larger magnitude */
       s_fp_sub (b, a, c);
     }
@@ -182,12 +182,12 @@ void s_fp_sub(fp_int *a, fp_int *b, fp_int *c)
   for (x = 0; x < oldbused; x++) {
      t         = ((fp_word)a->dp[x]) - (((fp_word)b->dp[x]) + t);
      c->dp[x]  = (fp_digit)t;
-     t         = (t >> DIGIT_BIT)&1;
+     t         = (t >> DIGIT_BIT)&1U;
   }
   for (; x < a->used; x++) {
      t         = ((fp_word)a->dp[x]) - t;
      c->dp[x]  = (fp_digit)t;
-     t         = (t >> DIGIT_BIT)&1;
+     t         = (t >> DIGIT_BIT)&1U;
    }
 
   /* zero any excess digits on the destination that we didn't write to */
@@ -354,7 +354,7 @@ void fp_mul_2(fp_int * a, fp_int * b)
     }
 
     /* new leading digit? */
-    if (r != 0 && b->used != (FP_SIZE-1)) {
+    if (r != 0U && b->used != (FP_SIZE-1)) {
       /* add a MSB which is always 1 at this point */
       *tmpb = 1;
       ++(b->used);
@@ -363,7 +363,7 @@ void fp_mul_2(fp_int * a, fp_int * b)
     /* zero any excess digits on the destination that we didn't write to */
     tmpb = b->dp + b->used;
     for (x = b->used; x < oldused; x++) {
-      *tmpb++ = 0;
+      *tmpb++ = 0U;
     }
   }
   b->sign = a->sign;
@@ -384,7 +384,7 @@ void fp_mul_d(fp_int *a, fp_digit b, fp_int *c)
        c->dp[x]  = (fp_digit)w;
        w         = w >> DIGIT_BIT;
    }
-   if (w != 0 && (a->used != FP_SIZE)) {
+   if (w != 0U && (a->used != FP_SIZE)) {
       c->dp[c->used++] = (fp_digit) w;
       ++x;
    }
@@ -414,14 +414,14 @@ void fp_mul_2d(fp_int *a, int b, fp_int *c)
    /* shift the digits */
    if (b != 0) {
       carry = 0;
-      shift = DIGIT_BIT - b;
+      shift = (fp_digit)DIGIT_BIT - (fp_digit)b;
       for (x = 0; x < c->used; x++) {
           carrytmp = c->dp[x] >> shift;
-          c->dp[x] = (c->dp[x] << b) + carry;
+          c->dp[x] = (c->dp[x] << (fp_word)b) + carry;
           carry = carrytmp;
       }
       /* store last carry if room */
-      if (carry && x < FP_SIZE) {
+      if ((carry != 0U) && (x < FP_SIZE)) {
          c->dp[c->used++] = carry;
       }
    }
@@ -519,142 +519,143 @@ void fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
 /* a/b => cb + d == a */
 int fp_div(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 {
-  fp_int  q, x, y, t1, t2;
-  int     n, t, i, norm, neg;
+    fp_int  q, x, y, t1, t2;
+    int     n, t, i, norm, neg;
 
-  /* is divisor zero ? */
-  if (fp_iszero (b) == FP_YES) {
-    return FP_VAL;
-  }
-
-  /* if a < b then q=0, r = a */
-  if (fp_cmp_mag (a, b) == FP_LT) {
-    if (d != NULL) {
-      fp_copy (a, d);
-    }
-    if (c != NULL) {
-      fp_zero (c);
-    }
-    return FP_OKAY;
-  }
-
-  fp_init(&q);
-  q.used = a->used + 2;
-
-  fp_init(&t1);
-  fp_init(&t2);
-  fp_init_copy(&x, a);
-  fp_init_copy(&y, b);
-
-  /* fix the sign */
-  neg = (a->sign == b->sign) ? FP_ZPOS : FP_NEG;
-  x.sign = y.sign = FP_ZPOS;
-
-  /* normalize both x and y, ensure that y >= b/2, [b == 2**DIGIT_BIT] */
-  norm = fp_count_bits(&y) % DIGIT_BIT;
-  if (norm < (int)(DIGIT_BIT-1)) {
-     norm = (DIGIT_BIT-1) - norm;
-     fp_mul_2d (&x, norm, &x);
-     fp_mul_2d (&y, norm, &y);
-  } else {
-     norm = 0;
-  }
-
-  /* note hac does 0 based, so if used==5 then its 0,1,2,3,4, e.g. use 4 */
-  n = x.used - 1;
-  t = y.used - 1;
-
-  /* while (x >= y*b**n-t) do { q[n-t] += 1; x -= y*b**{n-t} } */
-  fp_lshd (&y, n - t); /* y = y*b**{n-t} */
-
-  while (fp_cmp (&x, &y) != FP_LT) {
-    ++(q.dp[n - t]);
-    fp_sub (&x, &y, &x);
-  }
-
-  /* reset y by shifting it back down */
-  fp_rshd (&y, n - t);
-
-  /* step 3. for i from n down to (t + 1) */
-  for (i = n; i >= (t + 1); i--) {
-    if (i > x.used) {
-      continue;
+    /* is divisor zero ? */
+    if (fp_iszero (b) == FP_YES) {
+        return FP_VAL;
     }
 
-    /* step 3.1 if xi == yt then set q{i-t-1} to b-1,
-     * otherwise set q{i-t-1} to (xi*b + x{i-1})/yt */
-    if (x.dp[i] == y.dp[t]) {
-      q.dp[i - t - 1] = (fp_digit) ((((fp_word)1) << DIGIT_BIT) - 1);
+    /* if a < b then q=0, r = a */
+    if (fp_cmp_mag (a, b) == FP_LT) {
+        if (d != NULL) {
+            fp_copy (a, d);
+        }
+        if (c != NULL) {
+            fp_zero (c);
+        }
+        return FP_OKAY;
+    }
+
+    fp_init(&q);
+    q.used = a->used + 2;
+
+    fp_init(&t1);
+    fp_init(&t2);
+    fp_init_copy(&x, a);
+    fp_init_copy(&y, b);
+
+    /* fix the sign */
+    neg = (a->sign == b->sign) ? FP_ZPOS : FP_NEG;
+    x.sign = y.sign = FP_ZPOS;
+
+    /* normalize both x and y, ensure that y >= b/2, [b == 2**DIGIT_BIT] */
+    norm = fp_count_bits(&y) % DIGIT_BIT;
+    if (norm < (int)(DIGIT_BIT-1)) {
+        norm = (DIGIT_BIT-1) - norm;
+        fp_mul_2d (&x, norm, &x);
+        fp_mul_2d (&y, norm, &y);
     } else {
-      fp_word tmp;
-      tmp = ((fp_word) x.dp[i]) << ((fp_word) DIGIT_BIT);
-      tmp |= ((fp_word) x.dp[i - 1]);
-      tmp /= ((fp_word)y.dp[t]);
-      q.dp[i - t - 1] = (fp_digit) (tmp);
+        norm = 0;
     }
 
-    /* while (q{i-t-1} * (yt * b + y{t-1})) >
+    /* note hac does 0 based, so if used==5 then its 0,1,2,3,4, e.g. use 4 */
+    n = x.used - 1;
+    t = y.used - 1;
+
+    /* while (x >= y*b**n-t) do { q[n-t] += 1; x -= y*b**{n-t} } */
+    fp_lshd (&y, n - t); /* y = y*b**{n-t} */
+
+    while (fp_cmp (&x, &y) != FP_LT) {
+        ++(q.dp[n - t]);
+        fp_sub (&x, &y, &x);
+    }
+
+    /* reset y by shifting it back down */
+    fp_rshd (&y, n - t);
+
+    /* step 3. for i from n down to (t + 1) */
+    for (i = n; i >= (t + 1); i--) {
+        if (i > x.used) {
+            continue;
+        }
+
+        /* step 3.1 if xi == yt then set q{i-t-1} to b-1,
+        * otherwise set q{i-t-1} to (xi*b + x{i-1})/yt */
+        if (x.dp[i] == y.dp[t]) {
+            fp_word tmp = (((fp_word)1) << DIGIT_BIT) - 1;
+            q.dp[(i - t) - 1] = (fp_digit)tmp;
+        } else {
+            fp_word tmp;
+            tmp = ((fp_word) x.dp[i]) << ((fp_word) DIGIT_BIT);
+            tmp |= ((fp_word) x.dp[i - 1]);
+            tmp /= ((fp_word)y.dp[t]);
+            q.dp[i - t - 1] = (fp_digit) (tmp);
+        }
+
+        /* while (q{i-t-1} * (yt * b + y{t-1})) >
              xi * b**2 + xi-1 * b + xi-2
 
-       do q{i-t-1} -= 1;
+        do q{i-t-1} -= 1;
+        */
+        q.dp[i - t - 1] = (q.dp[i - t - 1] + 1U);
+        do {
+            q.dp[i - t - 1] = (q.dp[i - t - 1] - 1U);
+
+            /* find left hand */
+            fp_zero (&t1);
+            t1.dp[0] = (t - 1 < 0) ? 0 : y.dp[t - 1];
+            t1.dp[1] = y.dp[t];
+            t1.used = 2;
+            fp_mul_d (&t1, q.dp[i - t - 1], &t1);
+
+            /* find right hand */
+            t2.dp[0] = (i - 2 < 0) ? 0 : x.dp[i - 2];
+            t2.dp[1] = (i - 1 < 0) ? 0 : x.dp[i - 1];
+            t2.dp[2] = x.dp[i];
+            t2.used = 3;
+        } while (fp_cmp_mag(&t1, &t2) == FP_GT);
+
+        /* step 3.3 x = x - q{i-t-1} * y * b**{i-t-1} */
+        fp_mul_d (&y, q.dp[i - t - 1], &t1);
+        fp_lshd  (&t1, i - t - 1);
+        fp_sub   (&x, &t1, &x);
+
+        /* if x < 0 then { x = x + y*b**{i-t-1}; q{i-t-1} -= 1; } */
+        if (x.sign == FP_NEG) {
+            fp_copy (&y, &t1);
+            fp_lshd (&t1, i - t - 1);
+            fp_add (&x, &t1, &x);
+            q.dp[i - t - 1] = q.dp[i - t - 1] - 1;
+        }
+    }
+
+    /* now q is the quotient and x is the remainder
+    * [which we have to normalize]
     */
-    q.dp[i - t - 1] = (q.dp[i - t - 1] + 1);
-    do {
-      q.dp[i - t - 1] = (q.dp[i - t - 1] - 1);
 
-      /* find left hand */
-      fp_zero (&t1);
-      t1.dp[0] = (t - 1 < 0) ? 0 : y.dp[t - 1];
-      t1.dp[1] = y.dp[t];
-      t1.used = 2;
-      fp_mul_d (&t1, q.dp[i - t - 1], &t1);
+    /* get sign before writing to c */
+    x.sign = x.used == 0 ? FP_ZPOS : a->sign;
 
-      /* find right hand */
-      t2.dp[0] = (i - 2 < 0) ? 0 : x.dp[i - 2];
-      t2.dp[1] = (i - 1 < 0) ? 0 : x.dp[i - 1];
-      t2.dp[2] = x.dp[i];
-      t2.used = 3;
-    } while (fp_cmp_mag(&t1, &t2) == FP_GT);
-
-    /* step 3.3 x = x - q{i-t-1} * y * b**{i-t-1} */
-    fp_mul_d (&y, q.dp[i - t - 1], &t1);
-    fp_lshd  (&t1, i - t - 1);
-    fp_sub   (&x, &t1, &x);
-
-    /* if x < 0 then { x = x + y*b**{i-t-1}; q{i-t-1} -= 1; } */
-    if (x.sign == FP_NEG) {
-      fp_copy (&y, &t1);
-      fp_lshd (&t1, i - t - 1);
-      fp_add (&x, &t1, &x);
-      q.dp[i - t - 1] = q.dp[i - t - 1] - 1;
+    if (c != NULL) {
+        fp_clamp (&q);
+        fp_copy (&q, c);
+        c->sign = neg;
     }
-  }
 
-  /* now q is the quotient and x is the remainder
-   * [which we have to normalize]
-   */
+    if (d != NULL) {
+        fp_div_2d (&x, norm, &x, NULL);
 
-  /* get sign before writing to c */
-  x.sign = x.used == 0 ? FP_ZPOS : a->sign;
-
-  if (c != NULL) {
-    fp_clamp (&q);
-    fp_copy (&q, c);
-    c->sign = neg;
-  }
-
-  if (d != NULL) {
-    fp_div_2d (&x, norm, &x, NULL);
-
-    /* zero any excess digits on the destination that we didn't write to */
-    for (i = b->used; i < x.used; i++) {
-        x.dp[i] = 0;
+        /* zero any excess digits on the destination that we didn't write to */
+        for (i = b->used; i < x.used; i++) {
+            x.dp[i] = 0;
+        }
+        fp_clamp(&x);
+        fp_copy (&x, d);
     }
-    fp_clamp(&x);
-    fp_copy (&x, d);
-  }
 
-  return FP_OKAY;
+    return FP_OKAY;
 }
 
 /* b = a/2 */
@@ -677,7 +678,7 @@ void fp_div_2(fp_int * a, fp_int * b)
     r = 0;
     for (x = b->used - 1; x >= 0; x--) {
       /* get the carry for the next iteration */
-      rr = *tmpa & 1;
+      rr = *tmpa & 1U;
 
       /* shift the current digit, add in carry and store */
       *tmpb-- = (*tmpa-- >> 1) | (r << (DIGIT_BIT - 1));
@@ -863,8 +864,9 @@ top:
   }
 
   /* if not zero goto step 4 */
-  if (fp_iszero (&u) == FP_NO)
+  if (fp_iszero (&u) == FP_NO) {
     goto top;
+  }
 
   /* now a = C, b = D, gcd == g*v */
 
@@ -1175,8 +1177,9 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 #endif
 
   /* init M array */
-  for(x = 0; x < (1 << winsize); x++)
+  for (x = 0; (word32)x < ((word32)1 << (word32)winsize); x++) {
     fp_init(&M[x]);
+  }
 
   /* setup result */
   fp_init(&res);
@@ -1194,22 +1197,27 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
    /* now set M[1] to G * R mod m */
    if (fp_cmp_mag(P, G) != FP_GT) {
       /* G > P so we reduce it first */
-      fp_mod(G, P, &M[1]);
+      (void)fp_mod(G, P, &M[1]);
    } else {
       fp_copy(G, &M[1]);
    }
-   fp_mulmod (&M[1], &res, P, &M[1]);
+   (void)fp_mulmod (&M[1], &res, P, &M[1]);
 
   /* compute the value at M[1<<(winsize-1)] by
    * squaring M[1] (winsize-1) times */
-  fp_copy (&M[1], &M[1 << (winsize - 1)]);
+  fp_copy (&M[1], &M[(word32)1 << ((word32)winsize - 1U)]);
   for (x = 0; x < (winsize - 1); x++) {
-    fp_sqr (&M[1 << (winsize - 1)], &M[1 << (winsize - 1)]);
-    fp_montgomery_reduce (&M[1 << (winsize - 1)], P, mp);
+    fp_sqr (&M[(word32)1 << ((word32)winsize - 1U)],
+            &M[(word32)1 << ((word32)winsize - 1U)]);
+    fp_montgomery_reduce (&M[(word32)1 << ((word32)winsize - 1U)], P, mp);
   }
 
   /* create upper table */
-  for (x = (1 << (winsize - 1)) + 1; x < (1 << winsize); x++) {
+  {
+      word32 tmp = (word32)1 << ((word32)winsize - 1U);
+      x = (int)tmp + 1;
+  }
+  for ( ; (word32)x < ((word32)1 << (word32)winsize); x++) {
     fp_mul(&M[x - 1], &M[1], &M[x]);
     fp_montgomery_reduce(&M[x], P, mp);
   }
@@ -1235,7 +1243,10 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
     }
 
     /* grab the next msb from the exponent */
-    y     = (int)(buf >> (DIGIT_BIT - 1)) & 1;
+    {
+        fp_digit tmp = (buf >> (DIGIT_BIT - 1)) & 1U;
+        y = (int)tmp;
+    }
     buf <<= (fp_digit)1;
 
     /* if the bit is zero and mode == 0 then we ignore it
@@ -1285,7 +1296,7 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
       fp_montgomery_reduce(&res, P, mp);
 
       /* get next bit of the window */
-      bitbuf <<= 1;
+      bitbuf <<= 1U;
       if ((bitbuf & (1 << winsize)) != 0) {
         /* then multiply */
         fp_mul(&res, &M[1], &res);
@@ -1545,7 +1556,7 @@ void fp_sqr_comba(fp_int *A, fp_int *B)
       }
 
       /* even columns have the square term in them */
-      if ((ix&1) == 0) {
+      if (((word32)ix&1U) == 0U) {
           /* TAO change COMBA_ADD back to SQRADD */
           SQRADD(A->dp[ix>>1], A->dp[ix>>1]);
       }
@@ -1585,11 +1596,12 @@ int fp_cmp(fp_int *a, fp_int *b)
 int fp_cmp_d(fp_int *a, fp_digit b)
 {
   /* special case for zero*/
-  if (a->used == 0 && b == 0)
+  if (a->used == 0 && b == 0U) {
     return FP_EQ;
+  }
 
   /* compare based on sign */
-  if ((b && a->used == 0) || a->sign == FP_NEG) {
+  if ((b != 0U && a->used == 0) || a->sign == FP_NEG) {
     return FP_LT;
   }
 
@@ -1624,6 +1636,9 @@ int fp_cmp_mag(fp_int *a, fp_int *b)
           } else if (a->dp[x] < b->dp[x]) {
              return FP_LT;
           }
+          else {
+              /* Do nothing */
+          }
       }
    }
    return FP_EQ;
@@ -1644,16 +1659,16 @@ int fp_montgomery_setup(fp_int *a, fp_digit *rho)
  */
   b = a->dp[0];
 
-  if ((b & 1) == 0) {
+  if ((b & 1U) == 0U) {
     return FP_VAL;
   }
 
-  x = (((b + 2) & 4) << 1) + b; /* here x*a==1 mod 2**4 */
-  x *= 2 - b * x;               /* here x*a==1 mod 2**8 */
-  x *= 2 - b * x;               /* here x*a==1 mod 2**16 */
-  x *= 2 - b * x;               /* here x*a==1 mod 2**32 */
+  x = (((b + 2U) & 4U) << 1U) + b; /* here x*a==1 mod 2**4 */
+  x *= 2U - b * x;                 /* here x*a==1 mod 2**8 */
+  x *= 2U - b * x;                 /* here x*a==1 mod 2**16 */
+  x *= 2U - b * x;                 /* here x*a==1 mod 2**32 */
 #ifdef FP_64BIT
-  x *= 2 - b * x;               /* here x*a==1 mod 2**64 */
+  x *= 2U - b * x;                 /* here x*a==1 mod 2**64 */
 #endif
 
   /* rho = -1/m mod b */
@@ -1671,7 +1686,7 @@ void fp_montgomery_calc_normalization(fp_int *a, fp_int *b)
 
   /* how many bits of last digit does b use */
   bits = fp_count_bits (b) % DIGIT_BIT;
-  if (!bits) bits = DIGIT_BIT;
+  if (bits == 0) {bits = DIGIT_BIT;}
 
   /* compute A = B^(n-1) * 2^(bits-1) */
   if (b->used > 1) {
@@ -1833,7 +1848,7 @@ void fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp)
           ++_c;
        }
        LOOP_END;
-       while (cy) {
+       while (cy != 0U) {
            PROPCARRY;
            ++_c;
        }
@@ -1867,7 +1882,7 @@ void fp_read_unsigned_bin(fp_int *a, const unsigned char *b, int c)
 #if defined(ALT_ECC_SIZE) || defined(HAVE_WOLF_BIGINT)
   const word32 maxC = (a->size * sizeof(fp_digit));
 #else
-  const word32 maxC = (FP_SIZE * sizeof(fp_digit));
+  const word32 maxC = ((word32)FP_SIZE * sizeof(fp_digit));
 #endif
 
   /* zero the int */
@@ -1875,7 +1890,7 @@ void fp_read_unsigned_bin(fp_int *a, const unsigned char *b, int c)
 
   /* if input b excess max, then truncate */
   if (c > 0 && (word32)c > maxC) {
-     int excess = (c - maxC);
+     int excess = (c - (int)maxC);
      c -= excess;
      b += excess;
   }
@@ -1933,13 +1948,13 @@ int fp_to_unsigned_bin_at_pos(int x, fp_int *t, unsigned char *b)
    fp_digit n;
 
    for (j=0,i=0; i<t->used-1; ) {
-       b[x++] = (unsigned char)(t->dp[i] >> j);
+       b[x++] = (unsigned char)(t->dp[i] >> (unsigned int)j);
        j += 8;
-       i += j == DIGIT_BIT;
+       i += (j == DIGIT_BIT) ? (int)1 : (int)0;
        j &= DIGIT_BIT - 1;
    }
    n = t->dp[i];
-   while (n != 0) {
+   while (n != 0U) {
        b[x++] = (unsigned char)n;
        n >>= 8;
    }
@@ -1967,14 +1982,15 @@ void fp_to_unsigned_bin(fp_int *a, unsigned char *b)
 int fp_unsigned_bin_size(fp_int *a)
 {
   int     size = fp_count_bits (a);
-  return (size / 8 + ((size & 7) != 0 ? 1 : 0));
+  word32 tmp = (word32)size & 7U;
+  return (size / 8 + ((int)tmp != 0 ? (int)1 : (int)0));
 }
 
 void fp_set(fp_int *a, fp_digit b)
 {
    fp_zero(a);
    a->dp[0] = b;
-   a->used  = a->dp[0] ? 1 : 0;
+   a->used  = (a->dp[0] != 0U) ? (int)1 : (int)0;
 }
 
 
@@ -1986,7 +2002,7 @@ void fp_set_int(fp_int *a, unsigned long b)
   int x;
 
   /* use direct fp_set if b is less than fp_digit max */
-  if (b < FP_DIGIT_MAX) {
+  if (b < (unsigned long)FP_DIGIT_MAX) {
     fp_set (a, (fp_digit)b);
     return;
   }
@@ -1994,12 +2010,16 @@ void fp_set_int(fp_int *a, unsigned long b)
   fp_zero (a);
 
   /* set chunk bits at a time */
-  for (x = 0; x < (int)(sizeof(b) * 8) / MP_SET_CHUNK_BITS; x++) {
+  for (x = 0; x < ((int)sizeof(b) * 8) / MP_SET_CHUNK_BITS; x++) {
     fp_mul_2d (a, MP_SET_CHUNK_BITS, a);
 
     /* OR in the top bits of the source */
-    a->dp[0] |= (b >> ((sizeof(b) * 8) - MP_SET_CHUNK_BITS)) &
-                                  ((1 << MP_SET_CHUNK_BITS) - 1);
+    {
+        unsigned tmp1 = (sizeof(b) * 8U) - (unsigned)MP_SET_CHUNK_BITS;
+        unsigned tmp2 = (1U << MP_SET_CHUNK_BITS) - 1U;
+        unsigned tmp3 = (b >> tmp1) & tmp2;
+        a->dp[0] |= tmp3;
+    }
 
     /* shift the source up to the next chunk bits */
     b <<= MP_SET_CHUNK_BITS;
@@ -2016,16 +2036,27 @@ void fp_set_int(fp_int *a, unsigned long b)
 int fp_is_bit_set (fp_int *a, fp_digit b)
 {
     fp_digit i;
+    int ret;
 
-    if (b > FP_MAX_BITS)
+    if (b > (fp_digit)FP_MAX_BITS) {
         return 0;
-    else
-        i = b/DIGIT_BIT;
+    }
+    else {
+        i = b/(fp_digit)DIGIT_BIT;
+    }
 
-    if ((fp_digit)a->used < i)
+    if ((fp_digit)a->used < i) {
         return 0;
+    }
 
-    return (int)((a->dp[i] >> b%DIGIT_BIT) & (fp_digit)1);
+    {
+        fp_digit tmp = b % (fp_digit)DIGIT_BIT;
+        fp_digit tmp1 = a->dp[i] >> tmp;
+        fp_digit tmp2 = tmp1 & 1U;
+        ret = (int)tmp2;
+    }
+
+    return ret;
 }
 
 /* set the b bit of a */
@@ -2033,14 +2064,17 @@ int fp_set_bit (fp_int * a, fp_digit b)
 {
     fp_digit i;
 
-    if (b > FP_MAX_BITS)
+    if (b > (fp_digit)FP_MAX_BITS) {
         return 0;
-    else
-        i = b/DIGIT_BIT;
+    }
+    else {
+        i = b/(fp_digit)DIGIT_BIT;
+    }
 
     /* set the used count of where the bit will go if required */
-    if (a->used < (int)(i+1))
-        a->used = (int)(i+1);
+    if (a->used < ((int)i+1)) {
+        a->used = ((int)i+1);
+    }
 
     /* put the single bit in its place */
     a->dp[i] |= ((fp_digit)1) << (b % DIGIT_BIT);
@@ -2077,11 +2111,12 @@ int fp_leading_bit(fp_int *a)
 
     if (a->used != 0) {
         fp_digit q = a->dp[a->used - 1];
-        int qSz = sizeof(fp_digit);
+        int qSz = (int)sizeof(fp_digit);
 
         while (qSz > 0) {
-            if ((unsigned char)q != 0)
-                bit = (q & 0x80) != 0;
+            if ((unsigned char)q != 0U) {
+                bit = ((q & 0x80U) != 0U) ? (int)1 : (int)0;
+            }
             q >>= 8;
             qSz--;
         }
@@ -2120,13 +2155,13 @@ void fp_rshb(fp_int *c, int x)
 {
     fp_digit *tmpc, mask, shift;
     fp_digit r, rr;
-    fp_digit D = x;
+    fp_digit D = (fp_digit)x;
 
     /* mask */
     mask = (((fp_digit)1) << D) - 1;
 
     /* shift for lsb */
-    shift = DIGIT_BIT - D;
+    shift = (fp_digit)DIGIT_BIT - D;
 
     /* alias */
     tmpc = c->dp + (c->used - 1);
@@ -2216,8 +2251,9 @@ void fp_sub_d(fp_int *a, fp_digit b, fp_int *c)
 /* init a new mp_int */
 int mp_init (mp_int * a)
 {
-  if (a)
+  if (a != NULL) {
     fp_init(a);
+  }
   return MP_OKAY;
 }
 
@@ -2240,7 +2276,7 @@ void fp_zero(fp_int *a)
 #if defined(ALT_ECC_SIZE) || defined(HAVE_WOLF_BIGINT)
     size = a->size;
 #endif
-    XMEMSET(a->dp, 0, size * sizeof(fp_digit));
+    XMEMSET(a->dp, 0, (unsigned)size * sizeof(fp_digit));
 }
 
 void fp_clear(fp_int *a)
@@ -2251,7 +2287,7 @@ void fp_clear(fp_int *a)
 #if defined(ALT_ECC_SIZE) || defined(HAVE_WOLF_BIGINT)
     size = a->size;
 #endif
-    XMEMSET(a->dp, 0, size * sizeof(fp_digit));
+    XMEMSET(a->dp, 0, (unsigned)size * sizeof(fp_digit));
     fp_free(a);
 }
 
@@ -2263,7 +2299,7 @@ void fp_forcezero (mp_int * a)
 #if defined(ALT_ECC_SIZE) || defined(HAVE_WOLF_BIGINT)
     size = a->size;
 #endif
-    ForceZero(a->dp, size * sizeof(fp_digit));
+    ForceZero(a->dp, (unsigned)size * sizeof(fp_digit));
 #ifdef HAVE_WOLF_BIGINT
     wc_bigint_zero(&a->raw);
 #endif
@@ -2288,8 +2324,9 @@ void fp_free(fp_int* a)
 /* clear one (frees)  */
 void mp_clear (mp_int * a)
 {
-    if (a == NULL)
+    if (a == NULL) {
         return;
+    }
     fp_clear(a);
 }
 
@@ -2302,18 +2339,24 @@ void mp_free(mp_int* a)
 int mp_init_multi(mp_int* a, mp_int* b, mp_int* c, mp_int* d,
                   mp_int* e, mp_int* f)
 {
-    if (a)
+    if (a != NULL) {
         fp_init(a);
-    if (b)
+    }
+    if (b != NULL) {
         fp_init(b);
-    if (c)
+    }
+    if (c != NULL) {
         fp_init(c);
-    if (d)
+    }
+    if (d != NULL) {
         fp_init(d);
-    if (e)
+    }
+    if (e != NULL) {
         fp_init(e);
-    if (f)
+    }
+    if (f != NULL) {
         fp_init(f);
+    }
 
     return MP_OKAY;
 }
@@ -2498,7 +2541,7 @@ void fp_copy(fp_int *a, fp_int *b)
         /* all dp's are same size, so do straight copy */
         b->used = a->used;
         b->sign = a->sign;
-        XMEMCPY(b->dp, a->dp, FP_SIZE * sizeof(fp_digit));
+        XMEMCPY(b->dp, a->dp, (unsigned)FP_SIZE * sizeof(fp_digit));
 #endif
     }
 }
@@ -3096,7 +3139,8 @@ static const char* const fp_s_rmap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 #if DIGIT_BIT == 64 || DIGIT_BIT == 32
 static int fp_read_radix_16(fp_int *a, const char *str)
 {
-  int     i, j, k, neg;
+  int     i, k, neg;
+  unsigned j;
   char    ch;
 
   /* if the leading digit is a
@@ -3111,21 +3155,25 @@ static int fp_read_radix_16(fp_int *a, const char *str)
 
   j = 0;
   k = 0;
-  for (i = (int)(XSTRLEN(str) - 1); i >= 0; i--) {
+  for (i = ((int)XSTRLEN(str) - 1); i >= 0; i--) {
       ch = str[i];
-      if (ch >= '0' && ch <= '9')
+      if (ch >= '0' && ch <= '9') {
           ch -= '0';
-      else if (ch >= 'A' && ch <= 'F')
+      }
+      else if (ch >= 'A' && ch <= 'F') {
           ch -= 'A' - 10;
-      else if (ch >= 'a' && ch <= 'f')
+      }
+      else if (ch >= 'a' && ch <= 'f') {
           ch -= 'a' - 10;
-      else
+      }
+      else {
           return FP_VAL;
+      }
 
       a->dp[k] |= ((fp_digit)ch) << j;
-      j += 4;
-      k += j == DIGIT_BIT;
-      j &= DIGIT_BIT - 1;
+      j += 4U;
+      k += (j == (unsigned)DIGIT_BIT) ? (int)1 : (int)0;
+      j &= (unsigned)DIGIT_BIT - 1U;
   }
 
   a->used = k + 1;
@@ -3147,8 +3195,9 @@ static int fp_read_radix(fp_int *a, const char *str, int radix)
   fp_zero (a);
 
 #if DIGIT_BIT == 64 || DIGIT_BIT == 32
-  if (radix == 16)
+  if (radix == 16) {
       return fp_read_radix_16(a, str);
+  }
 #endif
 
   /* make sure the radix is ok */
@@ -3167,12 +3216,12 @@ static int fp_read_radix(fp_int *a, const char *str, int radix)
   }
 
   /* process each digit of the string */
-  while (*str) {
+  while (*str != (char)0) {
     /* if the radix <= 36 the conversion is case insensitive
      * this allows numbers like 1AB and 1ab to represent the same  value
      * [e.g. in hex]
      */
-    ch = (char)((radix <= 36) ? XTOUPPER((unsigned char)*str) : *str);
+    ch = (radix <= 36) ? (char)XTOUPPER((int)*str) : (char)*str;
     for (y = 0; y < 64; y++) {
       if (ch == fp_s_rmap[y]) {
          break;
