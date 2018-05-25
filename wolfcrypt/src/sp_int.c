@@ -34,7 +34,6 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-
 #ifdef WOLFSSL_SP_MATH
 
 #include <wolfssl/wolfcrypt/sp_int.h>
@@ -127,25 +126,26 @@ int sp_unsigned_bin_size(sp_int* a)
  */
 int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz)
 {
-    int i, j = 0, s = 0;
+    int i, j = 0;
+    word32 s = 0;
 
     a->dp[0] = 0;
     for (i = (int)inSz-1; i >= 0; i--) {
-        a->dp[j] |= ((sp_int_digit)in[i]) << (word32)s;
-        if (s == DIGIT_BIT - 8) {
+        a->dp[j] |= ((sp_int_digit)in[i]) << s;
+        if (s == (word32)DIGIT_BIT - 8U) {
             a->dp[++j] = 0;
             s = 0;
         }
-        else if (s > DIGIT_BIT - 8) {
-            s = DIGIT_BIT - s;
+        else if (s > (word32)DIGIT_BIT - 8U) {
+            s = (word32)DIGIT_BIT - s;
             if (j + 1 >= a->size) {
                 break;
             }
-            a->dp[++j] = (word32)in[i] >> (word32)s;
-            s = 8 - s;
+            a->dp[++j] = (word32)in[i] >> s;
+            s = 8U - s;
         }
         else {
-            s += 8;
+            s += 8U;
         }
     }
 
@@ -155,7 +155,7 @@ int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz)
     }
 
     for (j++; j < a->size; j++) {
-        a->dp[j] = 0;
+        a->dp[j] = 0U;
     }
 
     return MP_OKAY;
@@ -173,9 +173,9 @@ int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz)
  */
 int sp_read_radix(sp_int* a, const char* in, int radix)
 {
-    int     i, j, k;
+    int     i, k;
+    word32 j;
     char    ch;
-    word32 tmp;
 
     if (radix != 16) {
         return BAD_FUNC_ARG;
@@ -203,13 +203,12 @@ int sp_read_radix(sp_int* a, const char* in, int radix)
             return MP_VAL;
         }
 
-        a->dp[k] |= ((sp_int_digit)ch) << (word32)j;
-        j += 4;
-        if ((j == DIGIT_BIT) && (k < SP_INT_DIGITS)) {
+        a->dp[k] |= ((sp_int_digit)ch) << j;
+        j += 4U;
+        if (j == (word32)DIGIT_BIT && k < SP_INT_DIGITS) {
             a->dp[++k] = 0;
         }
-        tmp = (word32)j & ((word32)DIGIT_BIT - 1U);
-        j = (int)tmp;
+        j &= (word32)DIGIT_BIT - 1U;
     }
 
     a->used = k + 1;
@@ -218,7 +217,7 @@ int sp_read_radix(sp_int* a, const char* in, int radix)
     }
 
     for (k++; k < a->size; k++) {
-        a->dp[k] = 0;
+        a->dp[k] = 0U;
     }
 
     return MP_OKAY;
@@ -270,7 +269,7 @@ int sp_count_bits(sp_int* a)
     sp_int_digit d;
 
     r = a->used - 1;
-    while ((r >= 0) && (a->dp[r] == 0U)) {
+    while (r >= 0 && a->dp[r] == 0U) {
         r--;
     }
     if (r < 0) {
@@ -279,7 +278,7 @@ int sp_count_bits(sp_int* a)
     else {
         d = a->dp[r];
         r *= DIGIT_BIT;
-        while (d != (sp_int_digit)0) {
+        while (d != 0U) {
             r++;
             d >>= 1;
         }
@@ -296,21 +295,18 @@ int sp_count_bits(sp_int* a)
  */
 int sp_leading_bit(sp_int* a)
 {
-    int bit = 0;
+    word32 bit = 0;
     sp_int_digit d;
 
     if (a->used > 0) {
-        word32 tmp;
-
         d = a->dp[a->used - 1];
         while (d > (sp_int_digit)0xff) {
             d >>= 8;
         }
-        tmp = (word32)d >> 7U;
-        bit = (int)tmp;
+        bit = d >> 7U;
     }
 
-    return bit;
+    return (int)bit;
 }
 
 /* Convert the big number to an array of bytes in big-endian format.
@@ -322,12 +318,14 @@ int sp_leading_bit(sp_int* a)
  */
 int sp_to_unsigned_bin(sp_int* a, byte* out)
 {
-    int i, j, b;
+    int i, j;
+    word32 b, tmp;
 
     j = sp_unsigned_bin_size(a) - 1;
     for (i=0; j>=0; i++) {
-        for (b = 0; b < SP_WORD_SIZE; b += 8) {
-            out[j--] = (byte)a->dp[i] >> (word32)b;
+        for (b = 0U; b < (word32)SP_WORD_SIZE; b += 8U) {
+            tmp = a->dp[i] >> b;
+            out[j--] = (byte)tmp;
             if (j < 0) {
                 break;
             }
@@ -393,7 +391,7 @@ void sp_clamp(sp_int* a)
 {
     int i;
 
-    for (i = a->used - 1; (i >= 0) && (a->dp[i] == 0U); i--) {
+    for (i = a->used - 1; i >= 0 && a->dp[i] == 0U; i--) {
     }
     a->used = i + 1;
 }
@@ -455,7 +453,7 @@ int sp_cmp_d(sp_int *a, sp_int_digit d)
 {
     /* special case for zero*/
     if (a->used == 0) {
-        if (d == (sp_int_digit)0) {
+        if (d == 0U) {
             return MP_EQ;
         }
         else {
@@ -479,6 +477,7 @@ int sp_cmp_d(sp_int *a, sp_int_digit d)
     else {
         /* Do nothing */
     }
+
     return MP_EQ;
 }
 
@@ -684,7 +683,7 @@ int sp_add(sp_int* a, sp_int* b, sp_int* r)
         c = (r->dp[i] == 0U) ? (sp_digit)1 : (sp_digit)0;
     }
     r->dp[i] = (word32)c;
-    r->used = i + (int)c;
+    r->used = (int)(i + c);
 
     return MP_OKAY;
 }
