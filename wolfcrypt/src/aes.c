@@ -835,6 +835,28 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     /* implemented in wolfcrypt/src/port/devcrypto/devcrypto_aes.c */
 
 #elif defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_AES)
+
+    #if defined(WOLFSSL_RENESAS_RA6M3G) /* Renesas RA6M3 MCU */
+    #include <wolfssl/wolfcrypt/port/Renesas/renesas_sce_ra6m3g.h>
+
+    static int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+    {
+        int ret;
+        ret = wc_Renesas_AesEcb(aes, outBlock, inBlock, AES_BLOCK_SIZE, AES_SCE_ENCRYPT);
+        return ret;
+    }
+
+    #ifdef HAVE_AES_DECRYPT
+    static int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+    {
+        int ret;
+        ret = wc_Renesas_AesEcb(aes, outBlock, inBlock, AES_BLOCK_SIZE, AES_SCE_DECRYPT);
+        return ret;
+    }
+    #endif /* HAVE_AES_DECRYPT */
+
+    #elif defined(WOLFSSL_RENESAS_S7G2) /* Renesas S7G2 MCU */
+
     #include "hal_data.h"
 
     #ifndef WOLFSSL_SCE_AES256_HANDLE
@@ -976,6 +998,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         return AES_ECB_decrypt(aes, inBlock, outBlock, AES_BLOCK_SIZE);
     }
     #endif
+    #endif /* WOLFSSL_RENESAS_RA6M3 */
 #else
 
     /* using wolfCrypt software implementation */
@@ -1742,7 +1765,8 @@ static void wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         #endif
     }
 #endif
-#if defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_AES)
+#if defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_AES) && \
+    defined(WOLFSSL_RENESAS_S7G2)
     AES_ECB_encrypt(aes, inBlock, outBlock, AES_BLOCK_SIZE);
     return;
 #endif
@@ -2079,7 +2103,8 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         #endif
     }
 #endif /* WOLFSSL_AESNI */
-#if defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_AES)
+#if defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_AES) && \
+    defined(WOLFSSL_RENESAS_S7G2)
     return AES_ECB_decrypt(aes, inBlock, outBlock, AES_BLOCK_SIZE);
 #endif
 #if defined(WOLFSSL_IMXRT_DCP)
@@ -2784,7 +2809,8 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         XMEMCPY(rk, userKey, keylen);
     #if defined(LITTLE_ENDIAN_ORDER) && !defined(WOLFSSL_PIC32MZ_CRYPT) && \
         (!defined(WOLFSSL_ESP32WROOM32_CRYPT) || \
-          defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_AES))
+          defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_AES)) && \
+         !defined(WOLFSSL_RENESAS_RA6M3G)
         ByteReverseWords(rk, rk, keylen);
     #endif
 
@@ -2960,9 +2986,11 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 
 #if defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_AES)
         XMEMCPY((byte*)aes->key, userKey, keylen);
+    #if defined(WOLFSSL_RENESAS_S7G2)
         if (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag == CRYPTO_WORD_ENDIAN_BIG) {
             ByteReverseWords(aes->key, aes->key, 32);
         }
+    #endif
 #endif
 
         ret = wc_AesSetIV(aes, iv);
@@ -2983,6 +3011,23 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         if (aes == NULL) {
             return BAD_FUNC_ARG;
         }
+    #if defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G)
+    #if !defined(WOLFSSL_AES_128)
+        if (keylen == 16)
+            return BAD_FUNC_ARG;
+    #endif
+
+    #if  !defined(WOLFSSL_AES_192)
+        if (keylen == 24)
+            return BAD_FUNC_ARG;
+    #endif
+
+    #if !defined(WOLFSSL_AES_256)
+        if (keylen == 32)
+            return BAD_FUNC_ARG;
+    #endif
+    #endif /* WOLFSSL_SCE && WOLFSSL_RENESAS_RA6M3 */
+
         if (keylen > sizeof(aes->key)) {
             return BAD_FUNC_ARG;
         }
@@ -3036,6 +3081,41 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     #elif defined(WOLFSSL_DEVCRYPTO_AES)
         /* implemented in wolfcrypt/src/port/devcrypt/devcrypto_aes.c */
 
+    #elif defined(STM32_CRYPTO)
+        /* Allow direct access to one block encrypt */
+        void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
+        {
+            if (wolfSSL_CryptHwMutexLock() == 0) {
+                wc_AesEncrypt(aes, in, out);
+                wolfSSL_CryptHwMutexUnLock();
+            }
+        }
+        #ifdef HAVE_AES_DECRYPT
+        /* Allow direct access to one block decrypt */
+        void wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in)
+        {
+            if (wolfSSL_CryptHwMutexLock() == 0) {
+                wc_AesDecrypt(aes, in, out);
+                wolfSSL_CryptHwMutexUnLock();
+            }
+        }
+        #endif /* HAVE_AES_DECRYPT */
+
+    #elif defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
+        !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_AES)
+
+        /* Allow direct access to one block encrypt */
+        void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
+        {
+            wc_AesEncrypt(aes, in, out);
+        }
+        #ifdef HAVE_AES_DECRYPT
+        /* Allow direct access to one block decrypt */
+        void wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in)
+        {
+            wc_AesDecrypt(aes, in, out);
+        }
+        #endif /* HAVE_AES_DECRYPT */
     #else
         /* Allow direct access to one block encrypt */
         void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
@@ -3636,6 +3716,20 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
     /* implemented in wolfcrypt/src/port/silabs/silabs_hash.c */
 
+#elif defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G) && \
+      !defined(WOLFSSL_SCE_NO_AES)
+
+    int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz) {
+        return wc_Renesas_AesCbc(aes, out, in, sz, AES_SCE_ENCRYPT);
+    }
+
+    #ifdef HAVE_AES_DECRYPT
+    int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+    {
+        return wc_Renesas_AesCbc(aes, out, in, sz, AES_SCE_DECRYPT);
+    }
+    #endif /* HAVE_AES_DECRYPT */
+
 #else
 
     /* Software AES - CBC Encrypt */
@@ -4041,6 +4135,13 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         /* esp32 doesn't support CRT mode by hw.     */
         /* use aes ecnryption plus sw implementation */
         #define NEED_AES_CTR_SOFT
+
+#elif defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G) && \
+      !defined(WOLFSSL_SCE_NO_AES)
+
+    int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz) {
+        return wc_Renesas_AesCtrEncrypt(aes, out, in, sz);
+    }
 
     #else
 
@@ -8259,18 +8360,26 @@ int wc_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
     if ((in == NULL) || (out == NULL) || (aes == NULL))
         return BAD_FUNC_ARG;
-
-    return AES_ECB_encrypt(aes, in, out, sz);
+    #if defined(WOLFSSL_RENESAS_S7G2)
+        return AES_ECB_encrypt(aes, in, out, sz);
+    #elif defined(WOLFSSL_RENESAS_RA6M3G)
+        return wc_Renesas_AesEcb(aes, out, in, sz, AES_SCE_ENCRYPT);
+    #endif
 }
 
-
+#ifdef HAVE_AES_DECRYPT
 int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
     if ((in == NULL) || (out == NULL) || (aes == NULL))
         return BAD_FUNC_ARG;
 
-    return AES_ECB_decrypt(aes, in, out, sz);
+    #if defined(WOLFSSL_RENESAS_S7G2)
+        return AES_ECB_decrypt(aes, in, out, sz);
+    #elif defined(WOLFSSL_RENESAS_RA6M3G)
+        return wc_Renesas_AesEcb(aes, out, in, sz, AES_SCE_DECRYPT);
+    #endif
 }
+#endif /* HAVE_AES_DECRYPT */
 
 #else
 

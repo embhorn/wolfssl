@@ -150,6 +150,10 @@ ECC Curve Sizes:
     #include <wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h>
 #endif
 
+#if defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G)
+    #include <wolfssl/wolfcrypt/port/Renesas/renesas_sce_ra6m3g.h>
+#endif
+
 #if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
     #define GEN_MEM_ERR MP_MEM
 #elif defined(USE_FAST_MATH)
@@ -2469,7 +2473,157 @@ int ecc_map(ecc_point* P, mp_int* modulus, mp_digit mp)
 
 #if !defined(FREESCALE_LTC_ECC) && !defined(WOLFSSL_STM32_PKA)
 
-#if !defined(WOLFSSL_SP_MATH)
+#if !defined(FP_ECC) || !defined(WOLFSSL_SP_MATH)
+/**
+   Perform a point multiplication
+   k    The scalar to multiply by
+   G    The base point
+   R    [out] Destination for kG
+   a    ECC curve parameter a
+   modulus  The modulus of the field the ECC curve is in
+   map      Boolean whether to map back to affine or not
+                (1==map, 0 == leave in projective)
+   return MP_OKAY on success
+*/
+#ifdef FP_ECC
+static int normal_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R,
+                  mp_int* a, mp_int* modulus, int map,
+                  void* heap)
+{
+#elif defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G)
+static int wc_ecc_mulmod_soft(mp_int* k, ecc_point *G, ecc_point *R,
+                  mp_int* a, mp_int* modulus, int map,
+                  void* heap)
+{
+#else
+int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
+                  mp_int* a, mp_int* modulus, int map,
+                  void* heap)
+{
+#endif
+#ifndef WOLFSSL_SP_MATH
+#ifndef ECC_TIMING_RESISTANT
+   /* size of sliding window, don't change this! */
+   #define WINSIZE  4
+   #define M_POINTS 8
+   int           first = 1, bitbuf = 0, bitcpy = 0, j;
+#elif defined(WC_NO_CACHE_RESISTANT)
+   #define M_POINTS 4
+#else
+   #define M_POINTS 5
+#endif
+
+   ecc_point     *tG, *M[M_POINTS];
+   int           i, err;
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+   ecc_key       key;
+#endif
+#ifdef WOLFSSL_SMALL_STACK
+   mp_int*       mu = NULL;
+#else
+   mp_int        mu[1];
+#endif
+   mp_digit      mp;
+   mp_digit      buf;
+   int           bitcnt = 0, mode = 0, digidx = 0;
+
+   if (k == NULL || G == NULL || R == NULL || modulus == NULL) {
+       return ECC_BAD_ARG_E;
+   }
+
+   /* init variables */
+   tG = NULL;
+   XMEMSET(M, 0, sizeof(M));
+#ifdef WOLFSSL_SMALL_STACK
+   mu = (mp_int*)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_ECC);
+   if (mu == NULL)
+       return MEMORY_E;
+#endif
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+   key.t1 = (mp_int*)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_ECC);
+   key.t2 = (mp_int*)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_ECC);
+#ifdef ALT_ECC_SIZE
+   key.x = (mp_int*)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_ECC);
+   key.y = (mp_int*)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_ECC);
+   key.z = (mp_int*)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_ECC);
+#endif
+   if (key.t1 == NULL || key.t2 == NULL
+#ifdef ALT_ECC_SIZE
+      || key.x == NULL || key.y == NULL || key.z == NULL
+#endif
+   ) {
+#ifdef ALT_ECC_SIZE
+       XFREE(key.z, heap, DYNAMIC_TYPE_ECC);
+       XFREE(key.y, heap, DYNAMIC_TYPE_ECC);
+       XFREE(key.x, heap, DYNAMIC_TYPE_ECC);
+#endif
+       XFREE(key.t2, heap, DYNAMIC_TYPE_ECC);
+       XFREE(key.t1, heap, DYNAMIC_TYPE_ECC);
+       XFREE(mu, heap, DYNAMIC_TYPE_ECC);
+       return MEMORY_E;
+   }
+#endif /* WOLFSSL_SMALL_STACK_CACHE */
+
+   /* init montgomery reduction */
+   if ((err = mp_montgomery_setup(modulus, &mp)) != MP_OKAY) {
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+#ifdef ALT_ECC_SIZE
+       XFREE(key.z, heap, DYNAMIC_TYPE_ECC);
+       XFREE(key.y, heap, DYNAMIC_TYPE_ECC);
+       XFREE(key.x, heap, DYNAMIC_TYPE_ECC);
+#endif
+       XFREE(key.t2, heap, DYNAMIC_TYPE_ECC);
+       XFREE(key.t1, heap, DYNAMIC_TYPE_ECC);
+#endif /* WOLFSSL_SMALL_STACK_CACHE */
+#ifdef WOLFSSL_SMALL_STACK
+       XFREE(mu, heap, DYNAMIC_TYPE_ECC);
+#endif
+       return err;
+   }
+
+   if ((err = mp_init(mu)) != MP_OKAY) {
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+#ifdef ALT_ECC_SIZE
+       XFREE(key.z, heap, DYNAMIC_TYPE_ECC);
+       XFREE(key.y, heap, DYNAMIC_TYPE_ECC);
+       XFREE(key.x, heap, DYNAMIC_TYPE_ECC);
+#endif
+       XFREE(key.t2, heap, DYNAMIC_TYPE_ECC);
+       XFREE(key.t1, heap, DYNAMIC_TYPE_ECC);
+#endif /* WOLFSSL_SMALL_STACK_CACHE */
+#ifdef WOLFSSL_SMALL_STACK
+       XFREE(mu, heap, DYNAMIC_TYPE_ECC);
+#endif
+       return err;
+   }
+   if ((err = mp_montgomery_calc_normalization(mu, modulus)) != MP_OKAY) {
+       mp_clear(mu);
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+#ifdef ALT_ECC_SIZE
+       XFREE(key.z, heap, DYNAMIC_TYPE_ECC);
+       XFREE(key.y, heap, DYNAMIC_TYPE_ECC);
+       XFREE(key.x, heap, DYNAMIC_TYPE_ECC);
+#endif
+       XFREE(key.t2, heap, DYNAMIC_TYPE_ECC);
+       XFREE(key.t1, heap, DYNAMIC_TYPE_ECC);
+#endif /* WOLFSSL_SMALL_STACK_CACHE */
+#ifdef WOLFSSL_SMALL_STACK
+       XFREE(mu, heap, DYNAMIC_TYPE_ECC);
+#endif
+       return err;
+   }
+
+  /* alloc ram for window temps */
+  for (i = 0; i < M_POINTS; i++) {
+      M[i] = wc_ecc_new_point_h(heap);
+      if (M[i] == NULL) {
+         mp_clear(mu);
+         err = MEMORY_E; goto exit;
+      }
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+      M[i]->key = &key;
+#endif
+  }
 
 #ifndef ECC_TIMING_RESISTANT
 
@@ -3193,6 +3347,46 @@ exit:
 #endif /* !FP_ECC */
 
 #endif /* !FREESCALE_LTC_ECC && !WOLFSSL_STM32_PKA */
+
+#if defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G)
+int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
+                     mp_int* a, mp_int* modulus, int map,
+                     void* heap)
+{
+    (void)heap;
+    int i;
+    int ret = -1;
+    char Af[48] = {0};
+    mp_int b[1];
+
+    /* Hardware needs Bf, but standard mulmod interface does not include */
+    /* Convert mp_int a to char* Af */
+    if (a != NULL)
+        ret = mp_toradix(a, Af, 16);
+
+    /* Try to find the Bf corresponding to Af */
+    if (ret == MP_OKAY &&  mp_init(b) == MP_OKAY) {
+        for (i = 0; ecc_sets[i].size != 0; i++) {
+            if (XSTRNCMP(ecc_sets[i].Af, Af, XSTRLEN(Af)) == 0) {
+                ret = mp_read_radix(b, ecc_sets[i].Bf, MP_RADIX_HEX);
+                break;
+            }
+        }
+    }
+
+    /* Bf found and converted to mp_int b */
+    if (ret == MP_OKAY)
+        ret = wc_Renesas_Ecc256Mulmod(k, G, R, a, b, modulus, map);
+
+    /* Hardware may fail on infinity tests, use software as backup */
+    if (ret == WC_HW_E)
+        ret = wc_ecc_mulmod_soft(k, G, R, a, modulus, map, heap);
+
+    mp_clear(b);
+
+    return ret;
+}
+#endif /* WOLFSSL_SCE && WOLFSSL_RENESAS_RA6M3G */
 
 /** ECC Fixed Point mulmod global
     k        The multiplicand
@@ -4524,6 +4718,9 @@ int wc_ecc_make_key_ex2(WC_RNG* rng, int keysize, ecc_key* key, int curve_id,
 
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
     return silabs_ecc_make_key(key, keysize);
+
+#elif defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G)
+    err = wc_Renesas_EccGenerateKey(key);
 #else
 
 #ifdef WOLFSSL_HAVE_SP_ECC
@@ -5109,6 +5306,8 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
     defined(PLUTON_CRYPTO_ECC) || defined(WOLFSSL_CRYPTOCELL) || \
   defined(WOLFSSL_SILABS_SE_ACCEL)
     err = wc_ecc_sign_hash_hw(in, inlen, r, s, out, outlen, rng, key);
+#elif defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G)
+    err = wc_Renesas_EccGenerateSign(key, in, inlen, r, s);
 #else
     err = wc_ecc_sign_hash_ex(in, inlen, rng, key, r, s);
 #endif
@@ -6302,6 +6501,8 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
    CRYS_ECPKI_HASH_OpMode_t hash_mode;
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
    byte sigRS[ECC_MAX_CRYPTO_HW_SIZE * 2];
+#elif defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G)
+    /* no extra variables */
 #elif !defined(WOLFSSL_SP_MATH) || defined(FREESCALE_LTC_ECC)
    int          did_init = 0;
    ecc_point    *mG = NULL, *mQ = NULL;
@@ -6429,6 +6630,17 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
    err = silabs_ecc_verify_hash(&sigRS[0], keySz*2,
                                 hash, hashlen,
                                 res, key);
+#elif defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G)
+   /* checking if private key with no public part */
+   if (key->type == ECC_PRIVATEKEY_ONLY) {
+        WOLFSSL_MSG("Verify called with private key, generating public part\n");
+        err = wc_ecc_make_pub_ex(key, NULL, NULL);
+        if (err != MP_OKAY) {
+            WOLFSSL_MSG("Unable to extract public key");
+            return err;
+        }
+   }
+   err = wc_Renesas_EccVerifySign(key, r, s, hash, hashlen, res);
 
 #else
   /* checking if private key with no public part */
