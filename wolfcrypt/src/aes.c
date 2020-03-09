@@ -839,19 +839,15 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #if defined(WOLFSSL_RENESAS_RA6M3G) /* Renesas RA6M3 MCU */
     #include <wolfssl/wolfcrypt/port/Renesas/renesas_sce_ra6m3g.h>
 
-    static int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
-    {
-        int ret;
-        ret = wc_Renesas_AesEcb(aes, outBlock, inBlock, AES_BLOCK_SIZE, AES_SCE_ENCRYPT);
-        return ret;
+    static int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock) {
+        return wc_Renesas_AesEcb(aes, outBlock, inBlock,
+                                               AES_BLOCK_SIZE, AES_SCE_ENCRYPT);
     }
 
     #ifdef HAVE_AES_DECRYPT
-    static int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
-    {
-        int ret;
-        ret = wc_Renesas_AesEcb(aes, outBlock, inBlock, AES_BLOCK_SIZE, AES_SCE_DECRYPT);
-        return ret;
+    static int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock) {
+        return wc_Renesas_AesEcb(aes, outBlock, inBlock,
+                                               AES_BLOCK_SIZE, AES_SCE_DECRYPT);
     }
     #endif /* HAVE_AES_DECRYPT */
 
@@ -3011,13 +3007,12 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         if (aes == NULL) {
             return BAD_FUNC_ARG;
         }
-    #if defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G)
     #if !defined(WOLFSSL_AES_128)
         if (keylen == 16)
             return BAD_FUNC_ARG;
     #endif
 
-    #if  !defined(WOLFSSL_AES_192)
+    #if !defined(WOLFSSL_AES_192)
         if (keylen == 24)
             return BAD_FUNC_ARG;
     #endif
@@ -3026,7 +3021,6 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         if (keylen == 32)
             return BAD_FUNC_ARG;
     #endif
-    #endif /* WOLFSSL_SCE && WOLFSSL_RENESAS_RA6M3 */
 
         if (keylen > sizeof(aes->key)) {
             return BAD_FUNC_ARG;
@@ -3724,8 +3718,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     }
 
     #ifdef HAVE_AES_DECRYPT
-    int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
-    {
+    int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz) {
         return wc_Renesas_AesCbc(aes, out, in, sz, AES_SCE_DECRYPT);
     }
     #endif /* HAVE_AES_DECRYPT */

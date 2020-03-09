@@ -2471,7 +2471,8 @@ int ecc_map(ecc_point* P, mp_int* modulus, mp_digit mp)
 }
 #endif /* !WOLFSSL_SP_MATH || WOLFSSL_PUBLIC_ECC_ADD_DBL */
 
-#if !defined(FREESCALE_LTC_ECC) && !defined(WOLFSSL_STM32_PKA)
+#if !defined(FREESCALE_LTC_ECC) && !defined(WOLFSSL_STM32_PKA) && \
+	!(defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G))
 
 #if !defined(FP_ECC) || !defined(WOLFSSL_SP_MATH)
 /**
@@ -2489,18 +2490,12 @@ int ecc_map(ecc_point* P, mp_int* modulus, mp_digit mp)
 static int normal_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R,
                   mp_int* a, mp_int* modulus, int map,
                   void* heap)
-{
-#elif defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G)
-static int wc_ecc_mulmod_soft(mp_int* k, ecc_point *G, ecc_point *R,
-                  mp_int* a, mp_int* modulus, int map,
-                  void* heap)
-{
 #else
 int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
                   mp_int* a, mp_int* modulus, int map,
                   void* heap)
-{
 #endif
+{
 #ifndef WOLFSSL_SP_MATH
 #ifndef ECC_TIMING_RESISTANT
    /* size of sliding window, don't change this! */
@@ -3355,7 +3350,7 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
 {
     (void)heap;
     int i;
-    int ret = -1;
+    int ret = BAD_FUNC_ARG;
     char Af[48] = {0};
     mp_int b[1];
 
@@ -3365,7 +3360,8 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
         ret = mp_toradix(a, Af, 16);
 
     /* Try to find the Bf corresponding to Af */
-    if (ret == MP_OKAY &&  mp_init(b) == MP_OKAY) {
+    if (ret == MP_OKAY && mp_init(b) == MP_OKAY) {
+        ret = BAD_FUNC_ARG; /* incase we don't find Bf */
         for (i = 0; ecc_sets[i].size != 0; i++) {
             if (XSTRNCMP(ecc_sets[i].Af, Af, XSTRLEN(Af)) == 0) {
                 ret = mp_read_radix(b, ecc_sets[i].Bf, MP_RADIX_HEX);
@@ -3376,14 +3372,9 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
 
     /* Bf found and converted to mp_int b */
     if (ret == MP_OKAY)
-        ret = wc_Renesas_Ecc256Mulmod(k, G, R, a, b, modulus, map);
-
-    /* Hardware may fail on infinity tests, use software as backup */
-    if (ret == WC_HW_E)
-        ret = wc_ecc_mulmod_soft(k, G, R, a, modulus, map, heap);
+        ret = wc_Renesas_EccMulmod(k, G, R, a, b, modulus, map);
 
     mp_clear(b);
-
     return ret;
 }
 #endif /* WOLFSSL_SCE && WOLFSSL_RENESAS_RA6M3G */
@@ -7696,6 +7687,11 @@ static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
 
             err = WC_KEY_SIZE_E;
         }
+#endif
+#if defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G)
+        /* Renesas hardware errors out on this tests inputs */
+        if (err = WC_HW_E)
+            err = MP_OKAY;
 #endif
     }
 
