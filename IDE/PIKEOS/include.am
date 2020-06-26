@@ -1,0 +1,9 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+EXTRA_DIST+= IDE/PIKEOS/README.txt
+EXTRA_DIST+= IDE/PIKEOS/wolfcrypt.mk
+EXTRA_DIST+= IDE/PIKEOS/wolfcrypt.option.xml
+EXTRA_DIST+= IDE/PIKEOS/wolfssl.mk
+EXTRA_DIST+= IDE/PIKEOS/wolfssl.option.xml

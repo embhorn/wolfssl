@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="us-ascii" standalone="no"?>
+<Option xmlns="http://www.sysgo.com/xsd/prj/option-4.3.xsd" name="WolfSSL">
+  <Description>
+    <p>Enables use of the WolfSSL WolfCRYPT library.</p>
+    <p/>
+    <p>Refer to the
+    <a href="TBD">
+    WolfSSL Manual</a>
+    manual for further details.</p>     
+  </Description>
+  <Condition condition="($(POSIX_LWIP)==true)">
+    <Parameter desc="Enable WolfSSL support" display="WolfSSL" name="POSIX_WOLFSSL" type="boolean" value="false"/>
+  </Condition>
+</Option>
