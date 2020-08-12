@@ -4744,9 +4744,6 @@ AC_ARG_WITH([pikeos],
             If it's already installed, specify its path using --with-pikeos=/dir/])
         fi
 
-        enable_shared=no
-        enable_static=yes
-
         ENABLED_PIKEOS=yes
         AC_MSG_RESULT([yes])
     ],
@@ -4755,7 +4752,16 @@ AC_ARG_WITH([pikeos],
 
 if test "$ENABLED_PIKEOS" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_PIKEOS"
+    enable_examples=no
+    enable_crypttests=no
+    enable_shared=no
+    enable_static=yes
+
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PIKEOS -DWOLFSSL_LWIP"
+    
+    if test "$host_cpu" = "x86_64"
+        AM_CFLAGS="$AM_CFLAGS -I$trypikeosdir/target/x86/amd64/posix/include -I$trypikeosdir/target/x86/amd64/posix/lwip/include -I$trypikeosdir/target/x86/amd64/posix/lwip/include/opts"
+    fi
 fi
 
 
