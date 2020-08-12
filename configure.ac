@@ -4760,6 +4760,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PIKEOS -DWOLFSSL_LWIP"
     
     if test "$host_cpu" = "x86_64"
+    then
         AM_CFLAGS="$AM_CFLAGS -I$trypikeosdir/target/x86/amd64/posix/include -I$trypikeosdir/target/x86/amd64/posix/lwip/include -I$trypikeosdir/target/x86/amd64/posix/lwip/include/opts"
     fi
 fi
