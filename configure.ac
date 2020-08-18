@@ -4744,6 +4744,11 @@ AC_ARG_WITH([pikeos],
             If it's already installed, specify its path using --with-pikeos=/dir/])
         fi
 
+        ENABLED_EXAMPLES=no
+        ENABLED_CRYPT_TESTS=no
+        enable_shared=no
+        enable_static=yes
+    
         ENABLED_PIKEOS=yes
         AC_MSG_RESULT([yes])
     ],
@@ -4752,16 +4757,26 @@ AC_ARG_WITH([pikeos],
 
 if test "$ENABLED_PIKEOS" = "yes"
 then
-    enable_examples=no
-    enable_crypttests=no
-    enable_shared=no
-    enable_static=yes
-
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PIKEOS -DWOLFSSL_LWIP"
+    #AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PIKEOS -DWOLFSSL_LWIP"
     
     if test "$host_cpu" = "x86_64"
     then
-        AM_CFLAGS="$AM_CFLAGS -I$trypikeosdir/target/x86/amd64/posix/include -I$trypikeosdir/target/x86/amd64/posix/lwip/include -I$trypikeosdir/target/x86/amd64/posix/lwip/include/opts"
+        AM_CFLAGS="$AM_CFLAGS \
+                    -I$trypikeosdir/target/x86/amd64/posix/include \
+                    -I$trypikeosdir/target/x86/amd64/posix/lwip/include \
+                    -I$trypikeosdir/target/x86/amd64/posix/lwip/include/opts \
+                    -I$trypikeosdir/target/x86/amd64/driver/include \
+                    -I$trypikeosdir/target/x86/amd64/include"
+    fi
+    
+    if test "$host_cpu" = "aarch64"
+    then
+        AM_CFLAGS="$AM_CFLAGS \ 
+                    -I$trypikeosdir/target/arm/v8hf/posix/include \
+                    -I$trypikeosdir/target/arm/v8hf/posix/lwip/include \
+                    -I$trypikeosdir/target/arm/v8hf/posix/lwip/include/opts \
+                    -I$trypikeosdir/target/arm/v8hf/driver/include \
+                    -I$trypikeosdir/target/arm/v8hf/include"
     fi
 fi
 
