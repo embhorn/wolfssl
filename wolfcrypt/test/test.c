@@ -2540,7 +2540,7 @@ static int sha256_test(void)
             (word32)test_sha[i].inLen);
         if (ret != 0) {
             ERROR_OUT(-2302 - i, exit);
-    }
+        }
         ret = wc_Sha256GetHash(&sha, hashcopy);
         if (ret != 0)
             ERROR_OUT(-2303 - i, exit);
@@ -19909,6 +19909,7 @@ static int ecc_test_make_pub(WC_RNG* rng)
 #endif
     byte exportBuf[ECC_BUFSIZE];
     byte tmp[ECC_BUFSIZE];
+#endif
 #if !defined(WOLFSSL_SCE) && !defined(WOLFSSL_RENESAS_RA6M3G)
     const byte* msg = (const byte*)"test wolfSSL ECC public gen";
 #else /* Hardware Sign/Verify need msg to be size of key */
@@ -20654,10 +20655,10 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
 #if !defined(WOLFSSL_SCE) && !defined(WOLFSSL_RENESAS_RA6M3G)
         if (ret == 0)
             ret = wc_ecc_sign_hash(digest, ECC_DIGEST_SIZE, sig, &x, rng,
-                                                                        &userA);
+                                                                        userA);
 #else /* Renesas SCE hardware wants digest size to be the exact ECC key size */
             ret = wc_ecc_sign_hash(digest, (word32)userA.dp->size, sig, &x, rng,
-                                                                        &userA);
+                                                                        userA);
 #endif
     } while (ret == WC_PENDING_E);
     if (ret != 0)
@@ -20698,10 +20699,10 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
 
 #if !defined(WOLFSSL_SCE) && !defined(WOLFSSL_RENESAS_RA6M3G)
             ret = wc_ecc_sign_hash(digest, ECC_DIGEST_SIZE, sig, &x, rng,
-                                                                        &userA);
+                                                                        userA);
 #else
             ret = wc_ecc_sign_hash(digest, (word32)userA.dp->size, sig, &x, rng,
-                                                                        &userA);
+                                                                        userA);
 #endif
         }
     } while (ret == WC_PENDING_E);
@@ -20719,10 +20720,10 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
             if (ret == 0) {
 #if !defined(WOLFSSL_SCE) && !defined(WOLFSSL_RENESAS_RA6M3G)
                 ret = wc_ecc_verify_hash(sig, x, digest, ECC_DIGEST_SIZE,
-                                                               &verify, &userA);
+                                                               &verify, userA);
 #else
                 ret = wc_ecc_verify_hash(sig, x, digest, (word32)userA.dp->size,
-                                                               &verify, &userA);
+                                                               &verify, userA);
 #endif
             }
         } while (ret == WC_PENDING_E);
